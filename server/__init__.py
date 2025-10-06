@@ -48,11 +48,11 @@ with app.app_context():
 
     db.init_app(app)
 
-    # Create tables using checkfirst to avoid conflicts
+    # Create tables if they don't exist
     # Wrapped in try/except to handle race conditions with multiple workers
     with app.app_context():
         try:
-            db.create_all(checkfirst=True)
+            db.create_all()
         except Exception as e:
             # Tables may already exist from another worker, continue
             app.logger.warning(f"Database tables may already exist: {e}")
