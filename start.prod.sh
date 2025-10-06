@@ -14,9 +14,10 @@ if [ ! -f /var/lib/postgresql/data/PG_VERSION ]; then
   echo "PostgreSQL initialized"
 fi
 
-# Start PostgreSQL
+# Start PostgreSQL in background
 echo "Starting PostgreSQL..."
-su - postgres -c "$PG_BIN/pg_ctl -D /var/lib/postgresql/data -l /tmp/postgresql.log start"
+su - postgres -c "$PG_BIN/postgres -D /var/lib/postgresql/data" &
+POSTGRES_PID=$!
 
 # Wait for PostgreSQL to be ready
 echo "Waiting for PostgreSQL to be ready..."
@@ -44,9 +45,8 @@ fi
 # Grant necessary privileges
 su - postgres -c "psql -d postgres -c \"GRANT ALL PRIVILEGES ON DATABASE qstackdb TO qstack;\""
 
-# Initialize QStack database tables (Flask-SQLAlchemy will create tables on first run)
 echo "QStack database initialized"
 
-# Start supervisor (which starts both PostgreSQL and QStack)
+# Start Gunicorn (foreground)
 echo "Starting QStack application..."
-exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
+exec gunicorn -b 0.0.0.0:3001 -w 4 wsgi:app
