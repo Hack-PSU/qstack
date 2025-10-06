@@ -47,7 +47,15 @@ with app.app_context():
     from server import models
 
     db.init_app(app)
-    db.create_all()
+
+    # Create tables using checkfirst to avoid conflicts
+    # Wrapped in try/except to handle race conditions with multiple workers
+    with app.app_context():
+        try:
+            db.create_all(checkfirst=True)
+        except Exception as e:
+            # Tables may already exist from another worker, continue
+            app.logger.warning(f"Database tables may already exist: {e}")
 
     @app.errorhandler(404)
     def _default(_error):
