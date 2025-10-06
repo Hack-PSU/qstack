@@ -8,7 +8,7 @@ from urllib.parse import quote_plus, urlencode
 import csv
 from server.controllers.auth import auth_required_decorator
 from server.models import User, Ticket
-from server.plume.utils import get_info
+from server.hackpsu_api import get_user_info
 
 admin = APIBlueprint("admin", __name__, url_prefix="/admin")
 
@@ -51,16 +51,18 @@ def getTicketData():
 @auth_required_decorator(roles=["admin"])
 def getUserData():
     users = User.query.all()
-    uids = [u.id for u in users]
-    
-    info = get_info(uids)
-    
+    uids = [str(u.id) for u in users]
+
+    # Get user info from HackPSU API
+    cookies = {'__session': request.cookies.get('__session')}
+    info = get_user_info(uids, cookies)
+
     userData = []
     for user in users:
         userMap = user.map()
 
-        userMap["name"] = info[user.id]["name"] if user.id in info else None
-        userMap["email"] = info[user.id]["email"] if user.id in info else None
+        userMap["name"] = info.get(user.id, {}).get('name', None)
+        userMap["email"] = info.get(user.id, {}).get('email', None)
         userData.append(userMap)
 
     return userData

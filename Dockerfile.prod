@@ -1,0 +1,106 @@
+FROM node:18-slim AS frontend-builder
+
+WORKDIR /app/client
+
+# Copy frontend package files
+COPY client/package*.json ./
+RUN npm ci
+
+# Copy frontend source
+COPY client/ ./
+
+# Build frontend (production mode)
+RUN npm run build
+
+FROM python:3.9-slim
+
+# Install PostgreSQL and dependencies
+RUN apt-get update && apt-get install -y \
+    postgresql \
+    postgresql-contrib \
+    gcc \
+    python3-dev \
+    libpq-dev \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt gunicorn
+
+# Copy application code
+COPY server/ ./server/
+COPY wsgi.py .
+
+# Copy built frontend from builder stage
+COPY --from=frontend-builder /app/client/dist ./client/dist
+
+# Create PostgreSQL data directory
+RUN mkdir -p /var/lib/postgresql/data && \
+    chown -R postgres:postgres /var/lib/postgresql
+
+# Set defaults and internal config
+ENV PYTHONUNBUFFERED=1 \
+    PORT=3001 \
+    DATABASE_URL=postgresql://qstack:qstack_prod_pass@localhost:5432/qstackdb \
+    SQLALCHEMY_DATABASE_URI=postgresql://qstack:qstack_prod_pass@localhost:5432/qstackdb \
+    # Auth defaults
+    AUTH_ENVIRONMENT=production \
+    MIN_ACCESS_ROLE=0 \
+    MIN_ADMIN_ROLE=1 \
+    AUTH_SERVER_URL=https://auth.hackpsu.org/api/sessionUser \
+    AUTH_LOGIN_URL=https://auth.hackpsu.org/login \
+    AUTH_LOGOUT_URL=https://auth.hackpsu.org/api/sessionLogout \
+    QSTACK_URL=https://qstack.hackpsu.org \
+    HACKPSU_API_URL=https://apiv3.hackpsu.org \
+    FRONTEND_URL=https://qstack.hackpsu.org \
+    BACKEND_URL=https://qstack.hackpsu.org \
+    # App defaults
+    ENVIRONMENT=production
+
+# Required runtime env vars:
+# - APP_SECRET_KEY
+# - DISCORD_CLIENT_ID (optional)
+# - DISCORD_CLIENT_SECRET (optional)
+# - MENTOR_PASS (optional)
+
+# Detect PostgreSQL version and create supervisor config
+RUN PG_VERSION=$(ls /usr/lib/postgresql/) && \
+    echo '[supervisord]\n\
+nodaemon=true\n\
+user=root\n\
+\n\
+[program:postgresql]\n\
+user=postgres\n\
+command=/usr/lib/postgresql/'$PG_VERSION'/bin/postgres -D /var/lib/postgresql/data\n\
+autostart=true\n\
+autorestart=true\n\
+stdout_logfile=/dev/stdout\n\
+stdout_logfile_maxbytes=0\n\
+stderr_logfile=/dev/stderr\n\
+stderr_logfile_maxbytes=0\n\
+\n\
+[program:qstack]\n\
+command=gunicorn -b 0.0.0.0:3001 -w 4 wsgi:app\n\
+autostart=true\n\
+autorestart=true\n\
+stdout_logfile=/dev/stdout\n\
+stdout_logfile_maxbytes=0\n\
+stderr_logfile=/dev/stderr\n\
+stderr_logfile_maxbytes=0' > /etc/supervisor/conf.d/supervisord.conf
+
+# Copy startup script
+COPY start.prod.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
+# Expose port
+EXPOSE 3001
+
+# Volume for PostgreSQL data persistence
+VOLUME ["/var/lib/postgresql/data"]
+
+# Start script
+CMD ["/app/start.sh"]

@@ -1,5 +1,6 @@
 import functools
 from urllib.parse import quote_plus, urlencode
+import os
 
 from apiflask import APIBlueprint, abort
 from flask import current_app as app
@@ -18,10 +19,19 @@ from server.config import (
     # AUTH_USERNAME,
     # AUTH_PASSWORD,
     DISCORD_CLIENT_ID,
-    DISCORD_CLIENT_SECRET
+    DISCORD_CLIENT_SECRET,
+    AUTH_LOGIN_URL,
+    AUTH_LOGOUT_URL
 )
-from server.plume.utils import get_info
+# Plume removed - using HackPSU Firebase auth
 from server.models import User
+from server.firebase_session_auth import (
+    hackpsu_auth_required,
+    hackpsu_admin_required,
+    verify_hackpsu_session,
+    sync_user_from_auth_server,
+    check_access_permission
+)
 
 auth = APIBlueprint("auth", __name__, url_prefix="/auth")
 oauth = OAuth(app)
@@ -68,62 +78,87 @@ def auth_required_decorator(roles):
 
 @auth.route("/login")
 def login():
+    """Redirect to HackPSU Firebase auth login - or home if already logged in"""
     return_url = request.args.get("return_url", FRONTEND_URL + "/home")
-    session["return_url"] = return_url
-    return redirect(
-        f"https://plume.hackmit.org/login?return_url={quote_plus(FRONTEND_URL + '/api/auth/callback')}"
-    )
 
-    # use this when testing with local plume changes
-    # return redirect(
-    #     f"http://localhost:2003/login?return_url={quote_plus(FRONTEND_URL + '/api/auth/callback')}"
-    # )
+    print(f"[DEBUG LOGIN] All cookies: {dict(request.cookies)}")
+    print(f"[DEBUG LOGIN] Flask session: {dict(session)}")
+
+    # Check if user is already logged in via Flask session
+    if "user_id" in session:
+        user = User.query.filter_by(id=session["user_id"]).first()
+        if user:
+            print(f"[DEBUG] User already logged in via session, redirecting to: {return_url}")
+            return redirect(return_url)
+
+    # Check if __session cookie exists and is valid
+    session_cookie = request.cookies.get('__session')
+    print(f"[DEBUG LOGIN] __session cookie exists: {session_cookie is not None}")
+
+    if session_cookie:
+        print(f"[DEBUG] __session cookie found (first 20 chars): {session_cookie[:20]}...")
+        user_data = verify_hackpsu_session()
+        print(f"[DEBUG] verify_hackpsu_session returned: {user_data}")
+
+        if user_data:
+            has_access = check_access_permission(user_data)
+            print(f"[DEBUG] check_access_permission returned: {has_access}")
+
+            if has_access:
+                print("[DEBUG] Valid __session cookie, syncing user and redirecting")
+                # Sync user and set session
+                user = sync_user_from_auth_server(user_data)
+                if user:
+                    session["user_id"] = user.id
+                    session["user_name"] = user_data.get("displayName", "User")
+                    session["user_email"] = user_data.get("email", "")
+                    print(f"[DEBUG] Session created for user {user.id}, redirecting to: {return_url}")
+                    return redirect(return_url)
+                else:
+                    print("[DEBUG] Failed to sync user from auth server")
+            else:
+                print("[DEBUG] User does not have access permission")
+        else:
+            print("[DEBUG] verify_hackpsu_session returned None")
+
+    # No valid session, redirect to auth login
+    print("[DEBUG] No valid session, redirecting to auth server login")
+    callback_url = f"{BACKEND_URL}/api/auth/callback?return_url={quote_plus(return_url)}"
+    return redirect(f"{AUTH_LOGIN_URL}?redirect={quote_plus(callback_url)}")
 
 
 @auth.route("/callback", methods=["GET", "POST"])
 def callback():
-    user_id = request.args.get("user_id")
-    # print(user_id)
-    if not user_id:
-        # Redirect to front page with login error
-        return redirect(
-            f"{FRONTEND_URL}/?error=login_failed&message=User does not exist"
-        )
-    plume_resp = get_info([user_id])
-    if not plume_resp:
-        # Redirect to front page with login error
-        return redirect(f"{FRONTEND_URL}/?error=login_failed&message=User not found")
+    """Handle Firebase auth callback - verify session and create/update user"""
+    # Verify Firebase session
+    user_data = verify_hackpsu_session()
 
-    info = plume_resp[user_id]
-    session["user_id"] = user_id
-    session["user_name"] = info["name"]
-    session["user_email"] = info["email"]
+    if not user_data:
+        # Redirect to front page with login error
+        return redirect(f"{FRONTEND_URL}/?error=login_failed&message=Authentication failed")
 
-    # Check if user exists in qstack database, create if not
-    user = User.query.filter_by(id=user_id).first()
+    # Create or update user in database
+    user = sync_user_from_auth_server(user_data)
+
     if not user:
-        # print("creating user")
-        user = User(id=user_id)
+        return redirect(f"{FRONTEND_URL}/?error=login_failed&message=Failed to create user")
 
-        for admin in app.config["AUTH_ADMINS"]:
-            if admin["email"] == info["email"]:
-                user.role = "admin"
+    # Set session variables
+    session["user_id"] = user.id
+    session["user_name"] = user_data.get("displayName", "User")
+    session["user_email"] = user_data.get("email", "")
 
-        db.session.add(user)
-        db.session.commit()
-
-    # Get the return URL from session, default to FRONTEND_URL/home
-    return_url = session.pop("return_url", FRONTEND_URL + "/home")
+    # Get the return URL from query params, default to FRONTEND_URL/home
+    return_url = request.args.get("return_url", FRONTEND_URL + "/home")
     return redirect(return_url)
 
 
 @auth.route("/logout")
 def logout():
+    """Logout and redirect to HackPSU auth logout"""
     session.clear()
-    # return redirect("https://plume.hackmit.org/logout")
-    return redirect("https://help.hackmit.org")
-    # uncomment for local
-    # return redirect("http://localhost:2003/logout")
+    qstack_url = os.environ.get('QSTACK_URL', FRONTEND_URL)
+    return redirect(f"{AUTH_LOGOUT_URL}?redirect={qstack_url}")
 
 @auth.route("/discord/login")
 def discord_login():
@@ -132,8 +167,45 @@ def discord_login():
         return redirect(FRONTEND_URL + "/api/auth/login")
 
     return oauth.discord.authorize_redirect(
-        redirect_uri=FRONTEND_URL + "/auth/discord/callback"
+        redirect_uri=BACKEND_URL + "/api/auth/discord/callback"
     )
+
+@auth.route("/discord/callback")
+def discord_callback():
+    """Handle Discord OAuth callback"""
+    if "user_id" not in session:
+        return redirect(FRONTEND_URL + "/api/auth/login")
+
+    try:
+        # Exchange authorization code for access token
+        token = oauth.discord.authorize_access_token()
+
+        # Get Discord user profile
+        resp = oauth.discord.get("users/@me", token=token)
+        profile = resp.json()
+
+        # Extract Discord info
+        discord_username = profile.get('username', '')
+        discord_discriminator = profile.get('discriminator', '0')
+
+        # Discord removed discriminators for most users, use new format
+        if discord_discriminator == '0':
+            discord_tag = discord_username
+        else:
+            discord_tag = f"{discord_username}#{discord_discriminator}"
+
+        # Update user with Discord info
+        user = User.query.filter_by(id=session["user_id"]).first()
+        if user:
+            user.discord = discord_tag
+            db.session.commit()
+
+        # Redirect back to home
+        return redirect(FRONTEND_URL + "/home")
+
+    except Exception as e:
+        print(f"Discord OAuth error: {e}")
+        return redirect(FRONTEND_URL + "/home?error=discord_failed")
 
 @auth.route("/discord/exchange-token", methods=["POST"])
 def discord_exchange_token():
@@ -152,7 +224,7 @@ def discord_exchange_token():
         # Exchange code for token using the Discord OAuth client
         token = oauth.discord.fetch_access_token(
             code=code,
-            redirect_uri=FRONTEND_URL + "/auth/discord/callback"
+            redirect_uri=BACKEND_URL + "/api/auth/discord/callback"
         )
         print("got token", token)
         # Get Discord user profile
@@ -161,8 +233,14 @@ def discord_exchange_token():
         profile = resp.json()
 
         # Extract Discord info
-        discord_tag = f"{profile['username']}#{profile['discriminator']}"
-        # discord_id = profile['id']
+        discord_username = profile.get('username', '')
+        discord_discriminator = profile.get('discriminator', '0')
+
+        # Discord removed discriminators for most users
+        if discord_discriminator == '0':
+            discord_tag = discord_username
+        else:
+            discord_tag = f"{discord_username}#{discord_discriminator}"
 
         user = User.query.filter_by(id=session["user_id"]).first()
 
@@ -183,10 +261,32 @@ def discord_exchange_token():
 
 @auth.route("/whoami")
 def whoami():
+    """Get current user info - uses Firebase session verification"""
+    # First check Flask session
     if "user_id" in session:
         user = User.query.filter_by(id=session["user_id"]).first()
         if user:
             return dict(user.map(), loggedIn=True)
+
+    # Check if __session cookie exists
+    if not request.cookies.get('__session'):
+        return {"loggedIn": False}
+
+    # Verify __session cookie with auth server
+    user_data = verify_hackpsu_session()
+    if user_data:
+        # Check if user has access
+        if not check_access_permission(user_data):
+            return {"loggedIn": False, "error": "Insufficient permissions"}
+
+        # Sync user and set session
+        user = sync_user_from_auth_server(user_data)
+        if user:
+            session["user_id"] = user.id
+            session["user_name"] = user_data.get("displayName", "User")
+            session["user_email"] = user_data.get("email", "")
+            return dict(user.map(), loggedIn=True)
+
     return {"loggedIn": False}
 
 

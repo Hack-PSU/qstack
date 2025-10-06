@@ -18,7 +18,6 @@ import { all, createLowlight } from "lowlight";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as queue from "../api/queue";
-import Chat from "../components/chat";
 import classes from "./root.module.css";
 
 interface ticket {
@@ -301,9 +300,6 @@ export default function QueuePage() {
                           Unclaim
                         </Button>
                       </Group>
-		      <Box className="w-full mt-6">
-                      	<Chat popOutLink={true} />
-                      </Box>
                     </Card>
                   </Group>
                 )

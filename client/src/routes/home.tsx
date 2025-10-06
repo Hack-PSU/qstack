@@ -22,10 +22,7 @@ export default function HomePage() {
           const userData = await response.json();
           if (userData.loggedIn) {
             setUser(userData);
-            if (!userData.discord) {
-              window.location.href = '/api/auth/discord/login';
-              return;
-            }
+            // Discord is optional - don't force redirect
           }
         }
       } catch (error) {
@@ -75,9 +72,12 @@ export default function HomePage() {
               </Group>
             </Paper>
           ) : (
-            <>
-              <Text mb="sm">Connecting Discord...</Text>
-            </>
+            <Paper p="md" className="bg-neutral-700" mb="md">
+              <Text mb="sm">Discord not connected (optional)</Text>
+              <Anchor href="/api/auth/discord/login">
+                Connect Discord Account
+              </Anchor>
+            </Paper>
           )
         ) : (
           <Text>Please log in to connect your Discord account.</Text>

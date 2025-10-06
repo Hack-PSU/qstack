@@ -27,6 +27,14 @@ MENTOR_PASS = os.environ.get("MENTOR_PASS")
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
 
+# HackPSU Firebase Authentication Configuration
+AUTH_ENVIRONMENT = os.environ.get("AUTH_ENVIRONMENT", "production")
+MIN_ACCESS_ROLE = int(os.environ.get("MIN_ACCESS_ROLE", "2"))
+MIN_ADMIN_ROLE = int(os.environ.get("MIN_ADMIN_ROLE", "4"))
+AUTH_SERVER_URL = os.environ.get("AUTH_SERVER_URL", "http://localhost:3000/api/sessionUser")
+AUTH_LOGIN_URL = os.environ.get("AUTH_LOGIN_URL", "http://localhost:3000/login")
+AUTH_LOGOUT_URL = os.environ.get("AUTH_LOGOUT_URL", "http://localhost:3000/api/sessionLogout")
+
 ENV = os.environ.get("ENVIRONMENT", "development")
 
 AUTH_ADMINS = [

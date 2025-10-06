@@ -10,13 +10,12 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.mutable import MutableList
-
-from server.plume.utils import get_info
+from flask import session
 
 
 class User(db.Model):
     __tablename__ = "users"
-    
+
     id = Column(String, primary_key=True, nullable=False)
     role = Column(Text, nullable=False)
     location = Column(Text, nullable=False)
@@ -31,7 +30,7 @@ class User(db.Model):
 
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)
-        self.role = "hacker"
+        self.role = kwargs.get('role', 'hacker')
         self.location = "in person"
         self.zoomlink = ""
         self.discord = ""
@@ -40,13 +39,15 @@ class User(db.Model):
         self.reviews = []
 
     def map(self):
-        dict = get_info([str(self.id)])
-        info = dict[str(self.id)] if dict else None
+        # Get name and email from session (set during Firebase auth)
+        # No need to call external APIs - data is in session
+        name = session.get('user_name', 'User')
+        email = session.get('user_email', '')
 
         return {
             "id": self.id,
-            "name": info["name"] if info else None,
-            "email": info["email"] if info else None,
+            "name": name,
+            "email": email,
             "role": self.role,
             "location": self.location,
             "zoomlink": self.zoomlink,

@@ -16,7 +16,6 @@ from server.config import FRONTEND_URL
 from server.controllers.auth import is_user_valid
 from server.models.ticket import Ticket
 from server.models.user import User
-from server.plume.utils import get_info
 
 chat = APIBlueprint("chat", __name__, url_prefix="/chat")
 
@@ -89,21 +88,20 @@ def setup_ticket_chat():
 
 def chat_partner_metadata(user, ticket):
     if user.role == "hacker":
-        print("ticket", ticket)
-        print("ticket.claimant", ticket.claimant)
-        creator_id = ticket.claimant.id if ticket.claimant else "Unknown"
-        print("creator_id", creator_id)
-        creator_info = get_info([creator_id])
-        print("creator info ticket claimant", creator_info)
-        return creator_info[creator_id]["name"], "Mentor"
+        # For hackers, show the mentor who claimed the ticket
+        if ticket.claimant:
+            partner_name = "Mentor"
+        else:
+            partner_name = "Mentor (not yet claimed)"
+        return partner_name, "Mentor"
     if user.role in ("mentor", "admin"):
-        print("ticket", ticket)
-        print("ticket.creator", ticket.creator)
-        creator_id = ticket.creator.id if ticket.creator else "Unknown"
-        print("creator id", creator_id)
-        creator_info = get_info([creator_id])
-        print("creator info ticket creator", creator_info)
-        return creator_info[creator_id]["name"], "Hacker"
+        # For mentors/admins, show the hacker who created the ticket
+        # Use session data if it's the current user, otherwise use generic name
+        if str(ticket.creator_id) == session.get('user_id'):
+            partner_name = session.get('user_name', 'Hacker')
+        else:
+            partner_name = "Hacker"
+        return partner_name, "Hacker"
 
     raise AssertionError(f"unepxected role {user.role!r}")
 
@@ -118,11 +116,10 @@ def connect_handler(_auth=None):
     partner_name, role = chat_partner_metadata(user, ticket)
     print("connect", partner_name, role)
     emit("partner_metadata", {"name": partner_name, "role": role})
-    
-    from server.plume.utils import get_info
-    user_info = get_info([user.id])
-    actual_name = user_info[user.id]["name"] if user.id in user_info else user.role
-    
+
+    # Use session data for user's own name
+    actual_name = session.get('user_name', user.role)
+
     ts = floor(time())
     join_message = f"{actual_name} joined"
     join_data = {"ts": ts, "message": join_message}

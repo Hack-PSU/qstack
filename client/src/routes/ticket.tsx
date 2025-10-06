@@ -29,7 +29,6 @@ import StarterKit from "@tiptap/starter-kit";
 import { all, createLowlight } from "lowlight";
 import { useCallback, useEffect, useState } from "react";
 import * as ticket from "../api/ticket";
-import Chat from "../components/chat";
 import classes from "./root.module.css";
 
 interface mentor {
@@ -565,9 +564,6 @@ export default function TicketPage() {
                     Mark as Resolved
                   </Button>
                 </Group>
-                <Box className="w-full flex flex-col min-h-0">
-                  <Chat popOutLink={true} />
-                </Box>
               </Card>
             </Group>
           </Container>

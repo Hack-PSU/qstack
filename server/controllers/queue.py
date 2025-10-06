@@ -10,10 +10,9 @@ from flask import (
 from server import db
 from authlib.integrations.flask_client import OAuth
 from apiflask import APIBlueprint, abort
-from server.controllers.chat import close_ticket_room
 from server.models import User, Ticket
 from server.controllers.auth import auth_required_decorator
-from server.plume.utils import get_info
+from server.hackpsu_api import get_user_info
 
 queue = APIBlueprint("queue", __name__, url_prefix="/queue")
 
@@ -71,8 +70,6 @@ def unclaim():
 
     db.session.commit()
 
-    close_ticket_room(ticket.id, "ticket unclaimed. end of chat")
-
     return {"message": "Ticket unclaimed!"}
 
 
@@ -114,18 +111,22 @@ def claimed():
 @auth_required_decorator(roles=["mentor", "admin"])
 def ranking():
     mentors = User.query.filter_by(role="mentor")
-    uids = [u.id for u in mentors]
+    uids = [str(u.id) for u in mentors]
 
-    info = get_info(uids)
+    # Get user info from HackPSU API
+    cookies = {'__session': request.cookies.get('__session')}
+    info = get_user_info(uids, cookies)
+
     ranking = []
     for mentor in mentors:
         if mentor.ratings and len(mentor.ratings) > 0:
             mentor_rating = sum(mentor.ratings) / len(mentor.ratings)
+            mentor_name = info.get(mentor.id, {}).get('name', 'Unknown Mentor')
             ranking.append(
                 (
                     mentor.resolved_tickets,
                     len(mentor.ratings),
-                    info[mentor.id]["name"],
+                    mentor_name,
                     mentor_rating,
                 )
             )

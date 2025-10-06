@@ -1,12 +1,10 @@
 from flask import current_app as app, url_for, redirect, session, request, send_file, jsonify
-from flask_socketio import close_room
 from server import db
 from authlib.integrations.flask_client import OAuth
 from apiflask import APIBlueprint, abort
 from os import environ as env
 from urllib.parse import quote_plus, urlencode
 import csv
-from server.controllers.chat import close_ticket_room, fmt_room_name
 from server.models import User, Ticket
 from server.controllers.auth import auth_required_decorator
 
@@ -158,8 +156,6 @@ def unclaim():
     ticket.claimant_id = None
     db.session.commit()
 
-    close_ticket_room(ticket.id, "ticket unclaimed. end of chat")
-
     return {"message": "Ticket unclaimed!"}
 
 
@@ -198,8 +194,6 @@ def rate():
     db.session.delete(ticket)
     ticket.active = False
 
-    close_ticket_room(ticket.id, "ticket closed")
-
     db.session.commit()
 
     return mentor.ratings
@@ -215,8 +209,6 @@ def resolve():
 
     ticket = Ticket.query.get(user.ticket_id)
     ticket.status = "awaiting_feedback"
-
-    close_ticket_room(ticket.id, "ticket resolved")
 
     data = request.get_json()
     mentor = User.query.get(data["mentor_id"])

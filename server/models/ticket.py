@@ -1,8 +1,7 @@
 from server import db
 from sqlalchemy import Column, Integer, Boolean, Text, String, ForeignKey, ARRAY, DateTime
 from sqlalchemy.orm import relationship
-
-from server.plume.utils import get_info
+from flask import request
 
 
 class Ticket(db.Model):
@@ -47,8 +46,30 @@ class Ticket(db.Model):
         self.tags = data["tags"]
 
     def map(self):
-        info = get_info([str(self.creator_id), str(self.claimant_id)])
-        
+        # Get creator name from session or relationship
+        from flask import session as flask_session
+
+        creator_name = "Unknown User"
+        mentor_name = None
+
+        # Try to get creator name from session if it's the current user
+        if flask_session.get('user_id') == str(self.creator_id):
+            creator_name = flask_session.get('user_name', 'Unknown User')
+        elif self.creator:
+            # Fallback: try to get from creator object (requires session context)
+            try:
+                creator_name = flask_session.get('user_name', 'User')
+            except:
+                creator_name = "User"
+
+        # Get mentor name from session if it's the current user
+        if self.claimant_id:
+            if flask_session.get('user_id') == str(self.claimant_id):
+                mentor_name = flask_session.get('user_name', 'Mentor')
+            else:
+                # For other users, use a generic name
+                mentor_name = "Mentor"
+
         return {
             "id": self.id,
             "question": self.question,
@@ -57,10 +78,10 @@ class Ticket(db.Model):
             "tags": self.tags,
             "location": self.location,
             "images": self.images,
-            "creator": info[str(self.creator_id)]["name"],
-            "discord": self.creator.discord,
+            "creator": creator_name,
+            "discord": self.creator.discord if self.creator else "",
             "createdAt": self.createdAt,
             "status": self.status,
-            "mentor_name": info[str(self.claimant_id)]["name"] if self.claimant else None,
+            "mentor_name": mentor_name,
             "mentor_id": self.claimant_id
         }
