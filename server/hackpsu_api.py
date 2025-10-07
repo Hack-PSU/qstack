@@ -13,7 +13,10 @@ def get_bearer_token() -> Optional[str]:
     """Extract Firebase ID token from __session cookie for Bearer auth"""
     session_token = request.cookies.get('__session')
     if session_token:
+        print(f"[DEBUG] Bearer token extracted (first 50 chars): {session_token[:50]}...")
+        print(f"[DEBUG] Token length: {len(session_token)}")
         return session_token
+    print("[DEBUG] No __session cookie found for Bearer token")
     return None
 
 
@@ -35,9 +38,12 @@ def get_user_info(user_ids: List[str], token: Optional[str] = None) -> Dict[str,
     if not token:
         token = get_bearer_token()
 
+    print(f"[DEBUG] Token being used for get_user_info: {'Present' if token else 'None'}")
+
     headers = {}
     if token:
         headers['Authorization'] = f'Bearer {token}'
+        print(f"[DEBUG] Authorization header set with Bearer token")
 
     user_info_map = {}
 
@@ -113,16 +119,22 @@ def get_my_info(token: Optional[str] = None) -> Optional[Dict]:
     if not token:
         token = get_bearer_token()
 
+    print(f"[DEBUG] Token being used for get_my_info: {'Present' if token else 'None'}")
+
     headers = {}
     if token:
         headers['Authorization'] = f'Bearer {token}'
+        print(f"[DEBUG] Authorization header set for /users/info/me")
 
     try:
         user_url = f"{HACKPSU_API_URL}/users/info/me"
+        print(f"[DEBUG] Fetching user info from {user_url}")
         response = requests.get(user_url, headers=headers, timeout=5)
+        print(f"[DEBUG] Response status for /users/info/me: {response.status_code}")
 
         if response.ok:
             user_data = response.json()
+            print(f"[DEBUG] Successfully fetched /users/info/me: {user_data}")
             return {
                 'name': f"{user_data.get('firstName', '')} {user_data.get('lastName', '')}".strip(),
                 'email': user_data.get('email', ''),
@@ -134,7 +146,9 @@ def get_my_info(token: Optional[str] = None) -> Optional[Dict]:
                 'privilege': 0,  # Regular users have privilege 0
                 'isOrganizer': False
             }
+        else:
+            print(f"[DEBUG] /users/info/me returned {response.status_code}: {response.text[:200]}")
     except Exception as e:
-        print(f"[DEBUG] Failed to fetch user info: {e}")
+        print(f"[DEBUG] Exception fetching /users/info/me: {e}")
 
     return None
