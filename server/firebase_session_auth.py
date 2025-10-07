@@ -243,7 +243,7 @@ def sync_user_from_auth_server(user_data):
     privilege = extract_user_privilege(user_data)
 
     # Default role mapping
-    if privilege >= 4:
+    if privilege >= 3:
         role = 'admin'
     elif privilege >= 2:
         role = 'mentor'  # Organizers can help others

@@ -155,10 +155,30 @@ def callback():
 
 @auth.route("/logout")
 def logout():
-    """Logout and redirect to HackPSU auth logout"""
+    """Logout - call HackPSU auth logout endpoint and clear session"""
+    import requests
+
+    # Get the __session cookie to send to auth server
+    session_cookie = request.cookies.get('__session')
+
+    # Call HackPSU auth server to revoke Firebase session
+    if session_cookie:
+        try:
+            response = requests.post(
+                AUTH_LOGOUT_URL,
+                cookies={'__session': session_cookie},
+                timeout=5
+            )
+            print(f"[DEBUG] Auth server logout response: {response.status_code}")
+        except Exception as e:
+            print(f"[ERROR] Failed to call auth server logout: {e}")
+
+    # Clear Flask session
     session.clear()
+
+    # Redirect to frontend home
     qstack_url = os.environ.get('QSTACK_URL', FRONTEND_URL)
-    return redirect(f"{AUTH_LOGOUT_URL}?returnTo={qstack_url}")
+    return redirect(qstack_url)
 
 @auth.route("/discord/login")
 def discord_login():
