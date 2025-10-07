@@ -113,9 +113,8 @@ def ranking():
     mentors = User.query.filter_by(role="mentor")
     uids = [str(u.id) for u in mentors]
 
-    # Get user info from HackPSU API
-    cookies = {'__session': request.cookies.get('__session')}
-    info = get_user_info(uids, cookies)
+    # Get user info from HackPSU API (uses Bearer token automatically)
+    info = get_user_info(uids)
 
     ranking = []
     for mentor in mentors:

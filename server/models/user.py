@@ -11,6 +11,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.mutable import MutableList
 from flask import session
+from server.hackpsu_api import get_user_info, get_my_info
 
 
 class User(db.Model):
@@ -39,9 +40,30 @@ class User(db.Model):
         self.reviews = []
 
     def map(self):
-        # Get name and email from session (set during Firebase auth)
-        name = session.get('user_name', 'User')
-        email = session.get('user_email', '')
+        # Get name and email from HackPSU API
+        name = 'User'
+        email = ''
+
+        # Try to fetch user info from HackPSU API (uses Bearer token automatically)
+        if self.role in ['mentor', 'admin']:
+            # For organizers, fetch from organizer endpoint
+            user_info = get_user_info([self.id])
+            if self.id in user_info:
+                info = user_info[self.id]
+                name = info.get('name', 'User')
+                email = info.get('email', '')
+        else:
+            # For regular users, fetch their own info
+            user_info = get_my_info()
+            if user_info:
+                name = user_info.get('name', 'User')
+                email = user_info.get('email', '')
+
+        # Fallback to session if API call failed
+        if name == 'User':
+            name = session.get('user_name', 'User')
+        if not email:
+            email = session.get('user_email', '')
 
         return {
             "id": self.id,

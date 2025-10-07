@@ -1,5 +1,5 @@
 # from concurrent.futures import thread
-from flask import current_app as app, url_for, redirect, session, request
+from flask import current_app as app, url_for, redirect, session
 from server import db
 from authlib.integrations.flask_client import OAuth
 from apiflask import APIBlueprint, abort
@@ -53,9 +53,8 @@ def getUserData():
     users = User.query.all()
     uids = [str(u.id) for u in users]
 
-    # Get user info from HackPSU API
-    cookies = {'__session': request.cookies.get('__session')}
-    info = get_user_info(uids, cookies)
+    # Get user info from HackPSU API (uses Bearer token automatically)
+    info = get_user_info(uids)
 
     userData = []
     for user in users:

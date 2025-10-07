@@ -4,23 +4,40 @@
 import requests
 import os
 from typing import Dict, List, Optional
+from flask import request
 
 HACKPSU_API_URL = os.environ.get('HACKPSU_API_URL', 'https://apiv3.hackpsu.org')
 
 
-def get_user_info(user_ids: List[str], cookies: Optional[dict] = None) -> Dict[str, Dict]:
+def get_bearer_token() -> Optional[str]:
+    """Extract Firebase ID token from __session cookie for Bearer auth"""
+    session_token = request.cookies.get('__session')
+    if session_token:
+        return session_token
+    return None
+
+
+def get_user_info(user_ids: List[str], token: Optional[str] = None) -> Dict[str, Dict]:
     """
     Fetch user information from HackPSU API
 
     Args:
         user_ids: List of user IDs (Firebase UIDs)
-        cookies: Optional cookies to pass for authentication
+        token: Optional Firebase ID token for Bearer authentication
 
     Returns:
         Dictionary mapping user_id -> user_info
     """
     if not user_ids:
         return {}
+
+    # Use provided token or get from request
+    if not token:
+        token = get_bearer_token()
+
+    headers = {}
+    if token:
+        headers['Authorization'] = f'Bearer {token}'
 
     user_info_map = {}
 
@@ -31,7 +48,7 @@ def get_user_info(user_ids: List[str], cookies: Optional[dict] = None) -> Dict[s
         try:
             # Try organizer endpoint first (for admins)
             organizer_url = f"{HACKPSU_API_URL}/organizers/{user_id}"
-            response = requests.get(organizer_url, cookies=cookies, timeout=5)
+            response = requests.get(organizer_url, headers=headers, timeout=5)
 
             if response.ok:
                 organizer_data = response.json()
@@ -77,19 +94,27 @@ def get_user_info(user_ids: List[str], cookies: Optional[dict] = None) -> Dict[s
     return user_info_map
 
 
-def get_my_info(cookies: dict) -> Optional[Dict]:
+def get_my_info(token: Optional[str] = None) -> Optional[Dict]:
     """
     Fetch current user's information from HackPSU API
 
     Args:
-        cookies: Cookies containing __session token
+        token: Optional Firebase ID token for Bearer authentication
 
     Returns:
         User information dict or None
     """
+    # Use provided token or get from request
+    if not token:
+        token = get_bearer_token()
+
+    headers = {}
+    if token:
+        headers['Authorization'] = f'Bearer {token}'
+
     try:
         user_url = f"{HACKPSU_API_URL}/users/info/me"
-        response = requests.get(user_url, cookies=cookies, timeout=5)
+        response = requests.get(user_url, headers=headers, timeout=5)
 
         if response.ok:
             user_data = response.json()

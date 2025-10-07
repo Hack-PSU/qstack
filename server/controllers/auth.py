@@ -32,6 +32,7 @@ from server.firebase_session_auth import (
     sync_user_from_auth_server,
     check_access_permission
 )
+from server.hackpsu_api import get_user_info, get_my_info
 
 auth = APIBlueprint("auth", __name__, url_prefix="/auth")
 oauth = OAuth(app)
@@ -143,10 +144,28 @@ def callback():
     if not user:
         return redirect(f"{FRONTEND_URL}/?error=login_failed&message=Failed to create user")
 
-    # Set session variables
+    # Set session variables - fetch fresh data from HackPSU API
     session["user_id"] = user.id
-    session["user_name"] = user_data.get("displayName", "User")
-    session["user_email"] = user_data.get("email", "")
+
+    # Fetch user info from HackPSU API (uses Bearer token automatically)
+    if user.role in ['mentor', 'admin']:
+        # For organizers, fetch from organizer endpoint
+        api_user_info = get_user_info([user.id])
+        if user.id in api_user_info:
+            session["user_name"] = api_user_info[user.id].get('name', 'User')
+            session["user_email"] = api_user_info[user.id].get('email', '')
+        else:
+            session["user_name"] = user_data.get("displayName", "User")
+            session["user_email"] = user_data.get("email", "")
+    else:
+        # For regular users, fetch their own info
+        api_user_info = get_my_info()
+        if api_user_info:
+            session["user_name"] = api_user_info.get('name', 'User')
+            session["user_email"] = api_user_info.get('email', '')
+        else:
+            session["user_name"] = user_data.get("displayName", "User")
+            session["user_email"] = user_data.get("email", "")
 
     # Get the return URL from query params, default to FRONTEND_URL/home
     return_url = request.args.get("return_url", FRONTEND_URL + "/home")
@@ -303,8 +322,27 @@ def whoami():
         user = sync_user_from_auth_server(user_data)
         if user:
             session["user_id"] = user.id
-            session["user_name"] = user_data.get("displayName", "User")
-            session["user_email"] = user_data.get("email", "")
+
+            # Fetch user info from HackPSU API (uses Bearer token automatically)
+            if user.role in ['mentor', 'admin']:
+                # For organizers, fetch from organizer endpoint
+                api_user_info = get_user_info([user.id])
+                if user.id in api_user_info:
+                    session["user_name"] = api_user_info[user.id].get('name', 'User')
+                    session["user_email"] = api_user_info[user.id].get('email', '')
+                else:
+                    session["user_name"] = user_data.get("displayName", "User")
+                    session["user_email"] = user_data.get("email", "")
+            else:
+                # For regular users, fetch their own info
+                api_user_info = get_my_info()
+                if api_user_info:
+                    session["user_name"] = api_user_info.get('name', 'User')
+                    session["user_email"] = api_user_info.get('email', '')
+                else:
+                    session["user_name"] = user_data.get("displayName", "User")
+                    session["user_email"] = user_data.get("email", "")
+
             return dict(user.map(), loggedIn=True)
 
     return {"loggedIn": False}

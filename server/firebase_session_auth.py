@@ -7,6 +7,7 @@ from flask import request, session, redirect, abort
 from functools import wraps
 from server.models import User
 from server import db
+from server.hackpsu_api import get_user_info, get_my_info
 
 
 AUTH_SERVER_URL = os.environ.get('AUTH_SERVER_URL', 'http://localhost:3000/api/sessionUser')
@@ -36,7 +37,7 @@ def decode_session_token(token_string):
 
 
 def verify_hackpsu_session():
-    """Verify session with HackPSU auth server by sending cookies"""
+    """Verify session with HackPSU auth server and decode JWT for uid"""
     try:
         # Get the __session cookie from the request
         session_token = request.cookies.get('__session')
@@ -47,7 +48,7 @@ def verify_hackpsu_session():
 
         print(f"[DEBUG] Found __session cookie, verifying with auth server...")
 
-        # Try to verify with auth server first
+        # First, verify with auth server to ensure session is valid
         import requests
         try:
             response = requests.get(
@@ -56,53 +57,52 @@ def verify_hackpsu_session():
                 timeout=5
             )
 
-            if response.ok:
-                user_data = response.json()
-                print(f"[DEBUG] Auth server response: {user_data}")
-        except Exception as e:
-            print(f"[DEBUG] Auth server verification failed, falling back to JWT decode: {e}")
-            user_data = None
-
-        # If auth server didn't work, decode JWT directly
-        if not user_data or not user_data.get('user_id') and not user_data.get('uid'):
-            print("[DEBUG] Decoding JWT directly from __session cookie")
-            user_data = decode_session_token(session_token)
-            if not user_data:
-                print("[DEBUG] Failed to decode JWT")
+            if not response.ok:
+                print(f"[DEBUG] Auth server returned {response.status_code}")
                 return None
-            print(f"[DEBUG] Decoded JWT: {user_data}")
 
-        # Extract user info - handle multiple possible field names
-        email = user_data.get('email', '')
-        name = (user_data.get('name') or
-                user_data.get('displayName') or
-                user_data.get('firstName', '') + ' ' + user_data.get('lastName', '') or
+            auth_server_data = response.json()
+            print(f"[DEBUG] Auth server validation successful")
+        except Exception as e:
+            print(f"[DEBUG] Auth server verification failed: {e}")
+            return None
+
+        # Decode JWT to get uid and custom claims (auth server doesn't return these)
+        jwt_data = decode_session_token(session_token)
+        if not jwt_data:
+            print("[DEBUG] Failed to decode JWT")
+            return None
+
+        print(f"[DEBUG] Decoded JWT: {jwt_data}")
+
+        # Extract user ID from JWT (uid field is the Firebase UID)
+        uid = jwt_data.get('uid') or jwt_data.get('user_id') or jwt_data.get('sub')
+
+        if not uid:
+            print("[DEBUG] No uid found in JWT")
+            return None
+
+        # Extract user info from JWT
+        email = jwt_data.get('email', '')
+        name = (jwt_data.get('name') or
+                jwt_data.get('displayName') or
                 '')
 
         if not name.strip() and email:
             name = email.split('@')[0]
 
-        # Get user ID from various possible fields
-        uid = (user_data.get('uid') or
-               user_data.get('user_id') or
-               user_data.get('sub') or
-               user_data.get('id'))
-
+        # Extract custom claims for role/privilege
         user_info = {
             'uid': uid,
             'email': email,
             'displayName': name.strip() or 'Unknown User',
             'customClaims': {
-                'production': user_data.get('production', 0),
-                'staging': user_data.get('staging', 0)
+                'production': jwt_data.get('production', 0),
+                'staging': jwt_data.get('staging', 0)
             }
         }
 
-        print(f"[DEBUG] Extracted user info: uid={user_info['uid']}, email={user_info['email']}, name={user_info['displayName']}")
-
-        if not user_info.get('uid'):
-            print("[DEBUG] No valid user ID in extracted info")
-            return None
+        print(f"[DEBUG] Extracted user info: uid={user_info['uid']}, email={user_info['email']}, name={user_info['displayName']}, claims={user_info['customClaims']}")
 
         return user_info
 
@@ -192,10 +192,29 @@ def hackpsu_auth_required(f):
                 'error': 'Failed to create user account. Please contact an admin.'
             }, 403
 
-        # Set QStack session
+        # Set QStack session - fetch fresh data from HackPSU API
         session['user_id'] = user.id
-        session['user_name'] = user_data.get('displayName')
-        session['user_email'] = user_data.get('email')
+
+        # Fetch user info from HackPSU API (uses Bearer token automatically)
+        if user.role in ['mentor', 'admin']:
+            # For organizers, fetch from organizer endpoint
+            api_user_info = get_user_info([user.id])
+            if user.id in api_user_info:
+                session['user_name'] = api_user_info[user.id].get('name', 'User')
+                session['user_email'] = api_user_info[user.id].get('email', '')
+            else:
+                session['user_name'] = user_data.get('displayName', 'User')
+                session['user_email'] = user_data.get('email', '')
+        else:
+            # For regular users, fetch their own info
+            api_user_info = get_my_info()
+            if api_user_info:
+                session['user_name'] = api_user_info.get('name', 'User')
+                session['user_email'] = api_user_info.get('email', '')
+            else:
+                session['user_name'] = user_data.get('displayName', 'User')
+                session['user_email'] = user_data.get('email', '')
+
         print(f"[DEBUG] Auth successful, session set for: {user.id}")
 
         return f(*args, **kwargs)
@@ -223,8 +242,15 @@ def hackpsu_admin_required(f):
         user = sync_user_from_auth_server(user_data)
         if user:
             session['user_id'] = user.id
-            session['user_name'] = user_data.get('displayName')
-            session['user_email'] = user_data.get('email')
+
+            # Fetch user info from HackPSU API (uses Bearer token automatically)
+            api_user_info = get_user_info([user.id])
+            if user.id in api_user_info:
+                session['user_name'] = api_user_info[user.id].get('name', 'User')
+                session['user_email'] = api_user_info[user.id].get('email', '')
+            else:
+                session['user_name'] = user_data.get('displayName', 'User')
+                session['user_email'] = user_data.get('email', '')
 
         return f(*args, **kwargs)
 
@@ -234,7 +260,6 @@ def hackpsu_admin_required(f):
 def sync_user_from_auth_server(user_data):
     """Create/update QStack user from Firebase user data"""
     uid = user_data.get('uid')
-    email = user_data.get('email')
 
     if not uid:
         return None
