@@ -143,7 +143,7 @@ export default function NetworkVisualization() {
     // Draw links
     const link = g
       .append("g")
-      .selectAll("line")
+      .selectAll<SVGLineElement, Link>("line")
       .data(graphData.links)
       .join("line")
       .attr("stroke", (d) =>
@@ -156,7 +156,7 @@ export default function NetworkVisualization() {
     // Draw nodes
     const node = g
       .append("g")
-      .selectAll("circle")
+      .selectAll<SVGCircleElement, Node>("circle")
       .data(graphData.nodes)
       .join("circle")
       .attr("r", (d) => d.radius)
@@ -174,7 +174,7 @@ export default function NetworkVisualization() {
     // Add labels
     const label = g
       .append("g")
-      .selectAll("text")
+      .selectAll<SVGTextElement, Node>("text")
       .data(graphData.nodes)
       .join("text")
       .text((d) => d.name)
@@ -188,16 +188,16 @@ export default function NetworkVisualization() {
     // Drag behavior
     const drag = d3
       .drag<SVGCircleElement, Node>()
-      .on("start", (event) => {
+      .on("start", (event: d3.D3DragEvent<SVGCircleElement, Node, Node>) => {
         if (!event.active) simulation.alphaTarget(0.3).restart();
         event.subject.fx = event.subject.x;
         event.subject.fy = event.subject.y;
       })
-      .on("drag", (event) => {
+      .on("drag", (event: d3.D3DragEvent<SVGCircleElement, Node, Node>) => {
         event.subject.fx = event.x;
         event.subject.fy = event.y;
       })
-      .on("end", (event) => {
+      .on("end", (event: d3.D3DragEvent<SVGCircleElement, Node, Node>) => {
         if (!event.active) simulation.alphaTarget(0);
         event.subject.fx = null;
         event.subject.fy = null;
