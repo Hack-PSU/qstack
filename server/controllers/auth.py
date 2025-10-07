@@ -315,7 +315,11 @@ def whoami():
     if "user_id" in session:
         user = User.query.filter_by(id=session["user_id"]).first()
         if user:
-            return dict(user.map(), loggedIn=True)
+            user_dict = dict(user.map(), loggedIn=True)
+            # Check if Discord is connected
+            if not user.discord or user.discord.strip() == '':
+                user_dict['discordRequired'] = True
+            return user_dict
 
     # Check if __session cookie exists
     if not request.cookies.get('__session'):
@@ -335,7 +339,11 @@ def whoami():
             session["user_name"] = user_data.get("displayName", "User")
             session["user_email"] = user_data.get("email", "")
 
-            return dict(user.map(), loggedIn=True)
+            user_dict = dict(user.map(), loggedIn=True)
+            # Check if Discord is connected
+            if not user.discord or user.discord.strip() == '':
+                user_dict['discordRequired'] = True
+            return user_dict
 
     return {"loggedIn": False}
 

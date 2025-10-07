@@ -200,6 +200,18 @@ def hackpsu_auth_required(f):
 
         print(f"[DEBUG] Auth successful, session set for: {user.id}")
 
+        # Check if Discord is connected
+        if not user.discord or user.discord.strip() == '':
+            print(f"[DEBUG] User {user.id} has no Discord connected, needs to connect")
+            from server.config import FRONTEND_URL
+            # Return JSON response indicating Discord is required
+            # Frontend will handle showing the connect screen
+            return {
+                'error': 'discord_required',
+                'message': 'Please connect your Discord account to continue',
+                'redirect': f'{FRONTEND_URL}/connect-discord'
+            }, 403
+
         return f(*args, **kwargs)
 
     return decorated

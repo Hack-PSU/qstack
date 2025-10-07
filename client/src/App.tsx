@@ -22,6 +22,7 @@ import NotFoundPage from "./routes/notFound";
 import ProfilePage from "./routes/profile";
 import QueuePage from "./routes/queue";
 import TicketPage from "./routes/ticket";
+import ConnectDiscord from "./routes/connectDiscord";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -36,6 +37,7 @@ const router = createBrowserRouter(
       <Route index path="/queue" element={<QueuePage />} />
       <Route index path="/leaderboard" element={<Leaderboard />} />
       <Route index path="/stats" element={<AdminPanel />} />
+      <Route path="/connect-discord" element={<ConnectDiscord />} />
       <Route path="/auth/discord/callback" element={<DiscordCallback />} />
     </Route>
   )

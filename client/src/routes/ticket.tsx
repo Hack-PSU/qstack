@@ -433,7 +433,7 @@ export default function TicketPage() {
             value={location}
             size="md"
             mt="lg"
-            label="How can we find you? During official hacking hours, please put your Johnson Ice Rink table number. If you are requesting help outside of official hacking hours, your mentor will be virtual. Also, a reminder to please fill out your discord on your profile if you haven’t already to ensure that your mentor can contact you."
+            label="How can we find you? During official hacking hours, please put your Room Number or a description of your location. If you are requesting help outside of official hacking hours, your mentor may be virtual and answer your questions over Discord. Also, a reminder to please fill out your discord on your profile if you haven’t already to ensure that your mentor can contact you."
             placeholder="red shirt guy at table 3"
           />
           <Space></Space>
