@@ -144,8 +144,9 @@ def get_user_info(user_ids: List[str], token: Optional[str] = None) -> Dict[str,
         if not user_id or user_id == 'None':
             continue
 
+        organizer_success = False
         try:
-            # Try organizer endpoint first (for admins)
+            # Try organizer endpoint first (for admins/organizers)
             organizer_url = f"{HACKPSU_API_URL}/organizers/{user_id}"
             print(f"[DEBUG] Fetching organizer info from {organizer_url}")
             if headers.get('Authorization'):
@@ -157,44 +158,60 @@ def get_user_info(user_ids: List[str], token: Optional[str] = None) -> Dict[str,
             print(f"[DEBUG] Response status: {response.status_code}")
 
             if response.ok:
-                organizer_data = response.json()
-                user_info_map[user_id] = {
-                    'name': f"{organizer_data.get('firstName', '')} {organizer_data.get('lastName', '')}".strip(),
-                    'email': organizer_data.get('email', ''),
-                    'firstName': organizer_data.get('firstName', ''),
-                    'lastName': organizer_data.get('lastName', ''),
-                    'privilege': organizer_data.get('privilege', 0),
-                    'team': organizer_data.get('team', ''),
-                    'isOrganizer': True
-                }
-                print(f"[DEBUG] Successfully fetched organizer info for {user_id}: {user_info_map[user_id]}")
-                continue
+                try:
+                    organizer_data = response.json()
+                    # Check if we got actual data (not empty response)
+                    if organizer_data and organizer_data.get('email'):
+                        user_info_map[user_id] = {
+                            'name': f"{organizer_data.get('firstName', '')} {organizer_data.get('lastName', '')}".strip(),
+                            'email': organizer_data.get('email', ''),
+                            'firstName': organizer_data.get('firstName', ''),
+                            'lastName': organizer_data.get('lastName', ''),
+                            'privilege': organizer_data.get('privilege', 0),
+                            'team': organizer_data.get('team', ''),
+                            'isOrganizer': True
+                        }
+                        print(f"[DEBUG] Successfully fetched organizer info for {user_id}: {user_info_map[user_id]}")
+                        organizer_success = True
+                        continue
+                    else:
+                        print(f"[DEBUG] Organizer endpoint returned empty data for {user_id}")
+                except Exception as json_err:
+                    print(f"[DEBUG] Failed to parse organizer response for {user_id}: {json_err}")
             else:
-                print(f"[DEBUG] Organizer endpoint returned {response.status_code} for {user_id}: {response.text[:200]}")
+                print(f"[DEBUG] Organizer endpoint returned {response.status_code} for {user_id}")
         except Exception as e:
             print(f"[DEBUG] Exception fetching organizer info for {user_id}: {e}")
 
-        # If not an organizer or organizer fetch failed, try regular user endpoint
-        try:
-            # For regular users, we can't fetch by ID directly
-            # We'll use the info from session if available
-            # This is a limitation of the HackPSU API
+        # If organizer fetch failed, try /users/info/me for current user
+        if not organizer_success:
+            try:
+                from flask import session as flask_session
+                current_user_id = flask_session.get('user_id')
+
+                # Only try /users/info/me if this is the current authenticated user
+                if current_user_id == user_id:
+                    print(f"[DEBUG] Trying /users/info/me for current user {user_id}")
+                    user_data = get_my_info(token)
+                    if user_data:
+                        user_info_map[user_id] = user_data
+                        print(f"[DEBUG] Successfully fetched user info via /users/info/me for {user_id}")
+                        continue
+                    else:
+                        print(f"[DEBUG] /users/info/me failed for {user_id}")
+                else:
+                    print(f"[DEBUG] Cannot use /users/info/me for {user_id} (not current user)")
+            except Exception as e:
+                print(f"[DEBUG] Exception trying /users/info/me for {user_id}: {e}")
+
+        # Only use default if both methods failed
+        if user_id not in user_info_map:
+            print(f"[DEBUG] Both organizer and user endpoints failed, using default for {user_id}")
             user_info_map[user_id] = {
                 'name': 'User',
                 'email': '',
                 'firstName': 'User',
                 'lastName': '',
-                'privilege': 0,
-                'isOrganizer': False
-            }
-            print(f"[DEBUG] Using default info for regular user {user_id}")
-        except Exception as e:
-            print(f"[DEBUG] Failed to fetch user info for {user_id}: {e}")
-            user_info_map[user_id] = {
-                'name': 'Unknown User',
-                'email': '',
-                'firstName': 'Unknown',
-                'lastName': 'User',
                 'privilege': 0,
                 'isOrganizer': False
             }
