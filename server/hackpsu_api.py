@@ -183,26 +183,39 @@ def get_user_info(user_ids: List[str], token: Optional[str] = None) -> Dict[str,
         except Exception as e:
             print(f"[DEBUG] Exception fetching organizer info for {user_id}: {e}")
 
-        # If organizer fetch failed, try /users/info/me for current user
+        # If organizer fetch failed, try /users/{id} endpoint
         if not organizer_success:
             try:
-                from flask import session as flask_session
-                current_user_id = flask_session.get('user_id')
+                user_url = f"{HACKPSU_API_URL}/users/{user_id}"
+                print(f"[DEBUG] Fetching user info from {user_url}")
+                response = requests.get(user_url, headers=headers, timeout=5)
+                print(f"[DEBUG] Response status: {response.status_code}")
 
-                # Only try /users/info/me if this is the current authenticated user
-                if current_user_id == user_id:
-                    print(f"[DEBUG] Trying /users/info/me for current user {user_id}")
-                    user_data = get_my_info(token)
-                    if user_data:
-                        user_info_map[user_id] = user_data
-                        print(f"[DEBUG] Successfully fetched user info via /users/info/me for {user_id}")
-                        continue
-                    else:
-                        print(f"[DEBUG] /users/info/me failed for {user_id}")
+                if response.ok:
+                    try:
+                        user_data = response.json()
+                        if user_data and user_data.get('email'):
+                            user_info_map[user_id] = {
+                                'name': f"{user_data.get('firstName', '')} {user_data.get('lastName', '')}".strip(),
+                                'email': user_data.get('email', ''),
+                                'firstName': user_data.get('firstName', ''),
+                                'lastName': user_data.get('lastName', ''),
+                                'phone': user_data.get('phone', ''),
+                                'university': user_data.get('university', ''),
+                                'major': user_data.get('major', ''),
+                                'privilege': 0,  # Regular users have privilege 0
+                                'isOrganizer': False
+                            }
+                            print(f"[DEBUG] Successfully fetched user info for {user_id}: {user_info_map[user_id]}")
+                            continue
+                        else:
+                            print(f"[DEBUG] /users/{id} endpoint returned empty data for {user_id}")
+                    except Exception as json_err:
+                        print(f"[DEBUG] Failed to parse user response for {user_id}: {json_err}")
                 else:
-                    print(f"[DEBUG] Cannot use /users/info/me for {user_id} (not current user)")
+                    print(f"[DEBUG] /users/{id} endpoint returned {response.status_code} for {user_id}")
             except Exception as e:
-                print(f"[DEBUG] Exception trying /users/info/me for {user_id}: {e}")
+                print(f"[DEBUG] Exception fetching user info for {user_id}: {e}")
 
         # Only use default if both methods failed
         if user_id not in user_info_map:
