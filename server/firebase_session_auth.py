@@ -160,7 +160,7 @@ def hackpsu_auth_required(f):
             print("[DEBUG] No __session cookie, redirecting to login")
             auth_login_url = os.environ.get('AUTH_LOGIN_URL', 'http://localhost:3000/login')
             from server.config import FRONTEND_URL
-            redirect_url = f'{auth_login_url}?redirect={FRONTEND_URL}'
+            redirect_url = f'{auth_login_url}?returnTo={FRONTEND_URL}'
             return redirect(redirect_url)
 
         # Verify __session cookie with auth server
@@ -171,7 +171,7 @@ def hackpsu_auth_required(f):
             print("[DEBUG] __session cookie invalid or expired, redirecting to login")
             auth_login_url = os.environ.get('AUTH_LOGIN_URL', 'http://localhost:3000/login')
             from server.config import FRONTEND_URL
-            redirect_url = f'{auth_login_url}?redirect={FRONTEND_URL}'
+            redirect_url = f'{auth_login_url}?returnTo={FRONTEND_URL}'
             return redirect(redirect_url)
 
         print(f"[DEBUG] User data received: {user_data.get('email')}")
@@ -211,7 +211,7 @@ def hackpsu_admin_required(f):
 
         if not user_data:
             auth_login_url = os.environ.get('AUTH_LOGIN_URL', 'http://localhost:3000/login')
-            return redirect(f'{auth_login_url}?redirect={request.url}')
+            return redirect(f'{auth_login_url}?returnTo={request.url}')
 
         # Check admin permissions
         if not check_admin_permission(user_data):

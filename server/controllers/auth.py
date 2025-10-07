@@ -124,7 +124,7 @@ def login():
     # No valid session, redirect to auth login
     print("[DEBUG] No valid session, redirecting to auth server login")
     callback_url = f"{BACKEND_URL}/api/auth/callback?return_url={quote_plus(return_url)}"
-    return redirect(f"{AUTH_LOGIN_URL}?redirect={quote_plus(callback_url)}")
+    return redirect(f"{AUTH_LOGIN_URL}?returnTo={quote_plus(callback_url)}")
 
 
 @auth.route("/callback", methods=["GET", "POST"])
@@ -158,7 +158,7 @@ def logout():
     """Logout and redirect to HackPSU auth logout"""
     session.clear()
     qstack_url = os.environ.get('QSTACK_URL', FRONTEND_URL)
-    return redirect(f"{AUTH_LOGOUT_URL}?redirect={qstack_url}")
+    return redirect(f"{AUTH_LOGOUT_URL}?returnTo={qstack_url}")
 
 @auth.route("/discord/login")
 def discord_login():
