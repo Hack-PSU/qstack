@@ -48,7 +48,10 @@ def get_user_info(user_ids: List[str], token: Optional[str] = None) -> Dict[str,
         try:
             # Try organizer endpoint first (for admins)
             organizer_url = f"{HACKPSU_API_URL}/organizers/{user_id}"
+            print(f"[DEBUG] Fetching organizer info from {organizer_url}")
+            print(f"[DEBUG] Headers: Authorization={'Bearer ...' if headers.get('Authorization') else 'None'}")
             response = requests.get(organizer_url, headers=headers, timeout=5)
+            print(f"[DEBUG] Response status: {response.status_code}")
 
             if response.ok:
                 organizer_data = response.json()
@@ -61,10 +64,12 @@ def get_user_info(user_ids: List[str], token: Optional[str] = None) -> Dict[str,
                     'team': organizer_data.get('team', ''),
                     'isOrganizer': True
                 }
-                print(f"[DEBUG] Fetched organizer info for {user_id}")
+                print(f"[DEBUG] Successfully fetched organizer info for {user_id}: {user_info_map[user_id]}")
                 continue
+            else:
+                print(f"[DEBUG] Organizer endpoint returned {response.status_code} for {user_id}: {response.text[:200]}")
         except Exception as e:
-            print(f"[DEBUG] Failed to fetch organizer info for {user_id}: {e}")
+            print(f"[DEBUG] Exception fetching organizer info for {user_id}: {e}")
 
         # If not an organizer or organizer fetch failed, try regular user endpoint
         try:
