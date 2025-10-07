@@ -86,8 +86,8 @@ export default function HomePage() {
         <Text className="text-2xl mt-5">More questions?</Text>
         <Text>
           Visit our helpdesk or email us at <span></span>
-          <Anchor href="mailto:help@hackmit.org" target="_blank">
-            help@hackmit.org
+          <Anchor href="mailto:team@hackpsu.org" target="_blank">
+            team@hackpsu.org
           </Anchor>
         </Text>
       </Paper>

@@ -35,7 +35,7 @@ export default function IndexPage() {
         qstack
       </Title>
       <Title className="italic text-center text-lg">
-        HackMIT's help queue platform!
+        HackPSU's help queue platform!
       </Title>
       <Center>
         <Button

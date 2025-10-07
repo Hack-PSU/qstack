@@ -38,6 +38,6 @@ AUTH_LOGOUT_URL = os.environ.get("AUTH_LOGOUT_URL", "http://localhost:3000/api/s
 ENV = os.environ.get("ENVIRONMENT", "development")
 
 AUTH_ADMINS = [
-    {"name": "HackMIT", "email": "admin@hackmit.org"},
-    {"name": "HackMIT", "email": "team@hackmit.org"},
+    {"name": "HackPSU", "email": "admin@hackpsu.org"},
+    {"name": "HackPSU", "email": "team@hackpsu.org"},
 ]
