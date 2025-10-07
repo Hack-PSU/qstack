@@ -7,16 +7,109 @@ from typing import Dict, List, Optional
 from flask import request
 
 HACKPSU_API_URL = os.environ.get('HACKPSU_API_URL', 'https://apiv3.hackpsu.org')
+FIREBASE_API_KEY = os.environ.get('FIREBASE_API_KEY')
+
+
+def get_firebase_id_token_from_session_cookie() -> Optional[str]:
+    """Get Firebase ID token by exchanging session cookie with auth server
+
+    The auth server's /api/sessionUser endpoint verifies the session cookie
+    and returns a custom token. We then exchange this with Firebase Auth
+    to get a proper ID token for API calls.
+    """
+    from server.config import AUTH_SERVER_URL
+
+    session_cookie = request.cookies.get('__session')
+    if not session_cookie:
+        print("[DEBUG] No __session cookie found")
+        return None
+
+    try:
+        # Step 1: Call auth server to get custom token
+        auth_base_url = AUTH_SERVER_URL.replace('/api/sessionUser', '')
+        session_user_url = f"{auth_base_url}/api/sessionUser"
+
+        print(f"[DEBUG] Fetching custom token from {session_user_url}")
+        response = requests.get(
+            session_user_url,
+            cookies={'__session': session_cookie},
+            timeout=5
+        )
+
+        if not response.ok:
+            print(f"[DEBUG] Auth server returned {response.status_code}: {response.text[:200]}")
+            return None
+
+        data = response.json()
+        custom_token = data.get('customToken')
+        if not custom_token:
+            print("[DEBUG] No customToken in response")
+            return None
+
+        print(f"[DEBUG] Got custom token from auth server (length: {len(custom_token)})")
+
+        # Step 2: Exchange custom token for ID token using Firebase Auth REST API
+        if not FIREBASE_API_KEY:
+            print("[ERROR] FIREBASE_API_KEY not set in environment")
+            return None
+
+        firebase_auth_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key={FIREBASE_API_KEY}"
+
+        print(f"[DEBUG] Exchanging custom token for ID token with Firebase")
+        firebase_response = requests.post(
+            firebase_auth_url,
+            json={
+                'token': custom_token,
+                'returnSecureToken': True
+            },
+            timeout=5
+        )
+
+        if not firebase_response.ok:
+            print(f"[DEBUG] Firebase auth returned {firebase_response.status_code}: {firebase_response.text[:200]}")
+            return None
+
+        firebase_data = firebase_response.json()
+        id_token = firebase_data.get('idToken')
+
+        if id_token:
+            print(f"[DEBUG] Got Firebase ID token (length: {len(id_token)})")
+            return id_token
+        else:
+            print("[DEBUG] No idToken in Firebase response")
+            return None
+
+    except Exception as e:
+        print(f"[DEBUG] Failed to get Firebase ID token: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 
 def get_bearer_token() -> Optional[str]:
-    """Extract Firebase ID token from __session cookie for Bearer auth"""
-    session_token = request.cookies.get('__session')
-    if session_token:
-        print(f"[DEBUG] Bearer token extracted (first 50 chars): {session_token[:50]}...")
-        print(f"[DEBUG] Token length: {len(session_token)}")
-        return session_token
-    print("[DEBUG] No __session cookie found for Bearer token")
+    """Extract Firebase ID token for Bearer auth
+
+    Priority:
+    1. From Flask session (cached token)
+    2. Get fresh token from auth server via session cookie
+    """
+    from flask import session as flask_session
+
+    # Try session first (cached token)
+    if 'firebase_id_token' in flask_session:
+        token = flask_session['firebase_id_token']
+        print(f"[DEBUG] Bearer token from session cache (length: {len(token)})")
+        return token
+
+    # Get fresh token from auth server
+    token = get_firebase_id_token_from_session_cookie()
+    if token:
+        # Cache it in session for future requests
+        flask_session['firebase_id_token'] = token
+        print(f"[DEBUG] Cached new token in session")
+        return token
+
+    print("[DEBUG] No Firebase ID token available")
     return None
 
 
@@ -55,7 +148,11 @@ def get_user_info(user_ids: List[str], token: Optional[str] = None) -> Dict[str,
             # Try organizer endpoint first (for admins)
             organizer_url = f"{HACKPSU_API_URL}/organizers/{user_id}"
             print(f"[DEBUG] Fetching organizer info from {organizer_url}")
-            print(f"[DEBUG] Headers: Authorization={'Bearer ...' if headers.get('Authorization') else 'None'}")
+            if headers.get('Authorization'):
+                auth_header = headers['Authorization']
+                print(f"[DEBUG] Authorization header: {auth_header[:20]}... (length: {len(auth_header)})")
+            else:
+                print(f"[DEBUG] No Authorization header!")
             response = requests.get(organizer_url, headers=headers, timeout=5)
             print(f"[DEBUG] Response status: {response.status_code}")
 

@@ -99,7 +99,8 @@ def verify_hackpsu_session():
             'customClaims': {
                 'production': jwt_data.get('production', 0),
                 'staging': jwt_data.get('staging', 0)
-            }
+            },
+            'session_token': session_token  # Store session token for later use
         }
 
         print(f"[DEBUG] Extracted user info: uid={user_info['uid']}, email={user_info['email']}, name={user_info['displayName']}, claims={user_info['customClaims']}")
@@ -192,28 +193,10 @@ def hackpsu_auth_required(f):
                 'error': 'Failed to create user account. Please contact an admin.'
             }, 403
 
-        # Set QStack session - fetch fresh data from HackPSU API
+        # Set QStack session with data from JWT
         session['user_id'] = user.id
-
-        # Fetch user info from HackPSU API (uses Bearer token automatically)
-        if user.role in ['mentor', 'admin']:
-            # For organizers, fetch from organizer endpoint
-            api_user_info = get_user_info([user.id])
-            if user.id in api_user_info:
-                session['user_name'] = api_user_info[user.id].get('name', 'User')
-                session['user_email'] = api_user_info[user.id].get('email', '')
-            else:
-                session['user_name'] = user_data.get('displayName', 'User')
-                session['user_email'] = user_data.get('email', '')
-        else:
-            # For regular users, fetch their own info
-            api_user_info = get_my_info()
-            if api_user_info:
-                session['user_name'] = api_user_info.get('name', 'User')
-                session['user_email'] = api_user_info.get('email', '')
-            else:
-                session['user_name'] = user_data.get('displayName', 'User')
-                session['user_email'] = user_data.get('email', '')
+        session['user_name'] = user_data.get('displayName', 'User')
+        session['user_email'] = user_data.get('email', '')
 
         print(f"[DEBUG] Auth successful, session set for: {user.id}")
 
@@ -242,15 +225,8 @@ def hackpsu_admin_required(f):
         user = sync_user_from_auth_server(user_data)
         if user:
             session['user_id'] = user.id
-
-            # Fetch user info from HackPSU API (uses Bearer token automatically)
-            api_user_info = get_user_info([user.id])
-            if user.id in api_user_info:
-                session['user_name'] = api_user_info[user.id].get('name', 'User')
-                session['user_email'] = api_user_info[user.id].get('email', '')
-            else:
-                session['user_name'] = user_data.get('displayName', 'User')
-                session['user_email'] = user_data.get('email', '')
+            session['user_name'] = user_data.get('displayName', 'User')
+            session['user_email'] = user_data.get('email', '')
 
         return f(*args, **kwargs)
 

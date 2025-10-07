@@ -144,28 +144,19 @@ def callback():
     if not user:
         return redirect(f"{FRONTEND_URL}/?error=login_failed&message=Failed to create user")
 
-    # Set session variables - fetch fresh data from HackPSU API
+    # Set session variables
     session["user_id"] = user.id
 
-    # Fetch user info from HackPSU API (uses Bearer token automatically)
-    if user.role in ['mentor', 'admin']:
-        # For organizers, fetch from organizer endpoint
-        api_user_info = get_user_info([user.id])
-        if user.id in api_user_info:
-            session["user_name"] = api_user_info[user.id].get('name', 'User')
-            session["user_email"] = api_user_info[user.id].get('email', '')
-        else:
-            session["user_name"] = user_data.get("displayName", "User")
-            session["user_email"] = user_data.get("email", "")
-    else:
-        # For regular users, fetch their own info
-        api_user_info = get_my_info()
-        if api_user_info:
-            session["user_name"] = api_user_info.get('name', 'User')
-            session["user_email"] = api_user_info.get('email', '')
-        else:
-            session["user_name"] = user_data.get("displayName", "User")
-            session["user_email"] = user_data.get("email", "")
+    # Set name and email from JWT data (verified by auth server)
+    session["user_name"] = user_data.get("displayName", "User")
+    session["user_email"] = user_data.get("email", "")
+
+    # Store the session token for API calls (this is the Firebase session JWT)
+    # The client should send Firebase ID token separately for HackPSU API calls
+    if 'session_token' in user_data:
+        session['firebase_session_token'] = user_data['session_token']
+
+    print(f"[DEBUG] Session set: name={session['user_name']}, email={session['user_email']}")
 
     # Get the return URL from query params, default to FRONTEND_URL/home
     return_url = request.args.get("return_url", FRONTEND_URL + "/home")
@@ -298,6 +289,25 @@ def discord_exchange_token():
 
 
 
+@auth.route("/set-firebase-token", methods=["POST"])
+def set_firebase_token():
+    """Store Firebase ID token in session for HackPSU API calls"""
+    if "user_id" not in session:
+        return {"error": "Not logged in"}, 401
+
+    data = request.get_json()
+    firebase_id_token = data.get("idToken")
+
+    if not firebase_id_token:
+        return {"error": "Missing idToken"}, 400
+
+    # Store the Firebase ID token in session
+    session["firebase_id_token"] = firebase_id_token
+    print(f"[DEBUG] Stored Firebase ID token in session (length: {len(firebase_id_token)})")
+
+    return {"success": True}
+
+
 @auth.route("/whoami")
 def whoami():
     """Get current user info - uses Firebase session verification"""
@@ -322,26 +332,8 @@ def whoami():
         user = sync_user_from_auth_server(user_data)
         if user:
             session["user_id"] = user.id
-
-            # Fetch user info from HackPSU API (uses Bearer token automatically)
-            if user.role in ['mentor', 'admin']:
-                # For organizers, fetch from organizer endpoint
-                api_user_info = get_user_info([user.id])
-                if user.id in api_user_info:
-                    session["user_name"] = api_user_info[user.id].get('name', 'User')
-                    session["user_email"] = api_user_info[user.id].get('email', '')
-                else:
-                    session["user_name"] = user_data.get("displayName", "User")
-                    session["user_email"] = user_data.get("email", "")
-            else:
-                # For regular users, fetch their own info
-                api_user_info = get_my_info()
-                if api_user_info:
-                    session["user_name"] = api_user_info.get('name', 'User')
-                    session["user_email"] = api_user_info.get('email', '')
-                else:
-                    session["user_name"] = user_data.get("displayName", "User")
-                    session["user_email"] = user_data.get("email", "")
+            session["user_name"] = user_data.get("displayName", "User")
+            session["user_email"] = user_data.get("email", "")
 
             return dict(user.map(), loggedIn=True)
 
