@@ -41,7 +41,7 @@ class User(db.Model):
     def map(self):
         # Get name and email from session (set during Firebase auth)
         name = session.get('user_name', 'User')
-        email = session.get('email', '')
+        email = session.get('user_email', '')
 
         return {
             "id": self.id,
