@@ -23,11 +23,12 @@ import ProfilePage from "./routes/profile";
 import QueuePage from "./routes/queue";
 import TicketPage from "./routes/ticket";
 import ConnectDiscord from "./routes/connectDiscord";
+import NetworkVisualization from "./routes/network";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route
-      element={window.location.pathname !== "/" && <HeaderNav />}
+      element={window.location.pathname !== "/" && window.location.pathname !== "/network" && <HeaderNav />}
       errorElement={<NotFoundPage />}
     >
       <Route index path="/" element={<IndexPage />} />
@@ -37,6 +38,7 @@ const router = createBrowserRouter(
       <Route index path="/queue" element={<QueuePage />} />
       <Route index path="/leaderboard" element={<Leaderboard />} />
       <Route index path="/stats" element={<AdminPanel />} />
+      <Route path="/network" element={<NetworkVisualization />} />
       <Route path="/connect-discord" element={<ConnectDiscord />} />
       <Route path="/auth/discord/callback" element={<DiscordCallback />} />
     </Route>

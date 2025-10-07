@@ -11,6 +11,7 @@ import {
   IconLogout,
   IconTrophy,
   IconClipboardData,
+  IconNetwork,
 } from "@tabler/icons-react";
 
 export default function HeaderNav() {
@@ -91,6 +92,13 @@ export default function HeaderNav() {
             icon={<IconTrophy />}
             link="/leaderboard"
             label="Leaderboard"
+          />
+        )}
+        {role !== "hacker" && (
+          <QNavLink
+            icon={<IconNetwork />}
+            link="/network"
+            label="Network"
           />
         )}
         {role === "admin" && (
