@@ -124,6 +124,8 @@ def get_user_info(user_ids: List[str], token: Optional[str] = None) -> Dict[str,
     Returns:
         Dictionary mapping user_id -> user_info
     """
+    from flask import session as flask_session
+
     if not user_ids:
         return {}
 
@@ -139,6 +141,7 @@ def get_user_info(user_ids: List[str], token: Optional[str] = None) -> Dict[str,
         print(f"[DEBUG] Authorization header set with Bearer token")
 
     user_info_map = {}
+    token_refreshed = False  # Track if we've already tried refreshing the token
 
     for user_id in user_ids:
         if not user_id or user_id == 'None':
@@ -156,6 +159,24 @@ def get_user_info(user_ids: List[str], token: Optional[str] = None) -> Dict[str,
                 print(f"[DEBUG] No Authorization header!")
             response = requests.get(organizer_url, headers=headers, timeout=5)
             print(f"[DEBUG] Response status: {response.status_code}")
+
+            # If we get 403 and haven't refreshed token yet, try refreshing and retrying
+            if response.status_code == 403 and not token_refreshed and 'firebase_id_token' in flask_session:
+                print(f"[DEBUG] Organizer endpoint returned 403 for {user_id}, token may be expired. Refreshing...")
+                # Clear the cached token
+                del flask_session['firebase_id_token']
+                # Get a fresh token
+                new_token = get_firebase_id_token_from_session_cookie()
+                if new_token:
+                    flask_session['firebase_id_token'] = new_token
+                    headers['Authorization'] = f'Bearer {new_token}'
+                    token_refreshed = True
+                    print(f"[DEBUG] Token refreshed, retrying organizer endpoint for {user_id}")
+                    # Retry the request with new token
+                    response = requests.get(organizer_url, headers=headers, timeout=5)
+                    print(f"[DEBUG] Retry response status: {response.status_code}")
+                else:
+                    print(f"[DEBUG] Failed to refresh token")
 
             if response.ok:
                 try:
