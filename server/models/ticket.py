@@ -46,28 +46,23 @@ class Ticket(db.Model):
         self.tags = data["tags"]
 
     def map(self):
-        # Get creator name from session or relationship
-        from flask import session as flask_session
+        from server.hackpsu_api import get_user_info
 
+
+        # Fetch the creator's name from the HackPSU API using creator_id
         creator_name = "Unknown User"
+        if self.creator_id:
+            info = get_user_info([str(self.creator_id)])
+            if info and str(self.creator_id) in info:
+                creator_name = info[str(self.creator_id)].get('name', 'Unknown User')
+
+        # Also fetch mentor's name from HackPSU API for consistency
         mentor_name = None
-
-        # Try to get creator name from session if it's the current user
-        if flask_session.get('user_id') == str(self.creator_id):
-            creator_name = flask_session.get('user_name', 'Unknown User')
-        elif self.creator:
-            # Fallback: try to get from creator object (requires session context)
-            try:
-                creator_name = flask_session.get('user_name', 'User')
-            except:
-                creator_name = "User"
-
-        # Get mentor name from session if it's the current user
         if self.claimant_id:
-            if flask_session.get('user_id') == str(self.claimant_id):
-                mentor_name = flask_session.get('user_name', 'Mentor')
+            info = get_user_info([str(self.claimant_id)])
+            if info and str(self.claimant_id) in info:
+                mentor_name = info[str(self.claimant_id)].get('name', 'Mentor')
             else:
-                # For other users, use a generic name
                 mentor_name = "Mentor"
 
         return {
@@ -78,10 +73,12 @@ class Ticket(db.Model):
             "tags": self.tags,
             "location": self.location,
             "images": self.images,
+            # This is now the true creator's name, not the session user's name
             "creator": creator_name,
             "discord": self.creator.discord if self.creator else "",
             "createdAt": self.createdAt,
             "status": self.status,
+            # This is now the true mentor's name, not the session user's name
             "mentor_name": mentor_name,
             "mentor_id": self.claimant_id
         }
