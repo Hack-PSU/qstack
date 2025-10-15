@@ -54,9 +54,6 @@ services:
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    depends_on:
-      auth:
-        condition: service_healthy
     networks:
       - qstack-network
 
