@@ -56,6 +56,8 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - qstack-network
+    env_file:
+      - .env
 
 volumes:
   postgres_data:
