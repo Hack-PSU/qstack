@@ -287,6 +287,27 @@ def discord_exchange_token():
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+@auth.route("/set-phone", methods=["POST"])
+def set_phone():
+    """Set user's phone number"""
+    if "user_id" not in session:
+        return {"success": False, "error": "Must be logged in first"}, 401
+
+    data = request.get_json()
+    phone = data.get("phone", "").strip()
+
+    if not phone:
+        return {"success": False, "error": "Phone number is required"}, 400
+
+    user = User.query.filter_by(id=session["user_id"]).first()
+    if not user:
+        return {"success": False, "error": "User not found"}, 404
+
+    user.phone = phone
+    db.session.commit()
+    print(f"[DEBUG] User {user.id} set phone: {phone}")
+    return {"success": True, "phone": phone}
+
 
 
 @auth.route("/set-firebase-token", methods=["POST"])
@@ -316,9 +337,10 @@ def whoami():
         user = User.query.filter_by(id=session["user_id"]).first()
         if user:
             user_dict = dict(user.map(), loggedIn=True)
-            # Check if Discord is connected
-            if not user.discord or user.discord.strip() == '':
-                user_dict['discordRequired'] = True
+            # Check if Discord or phone number is connected
+            has_contact = (user.discord and user.discord.strip() != '') or (user.phone and user.phone.strip() != '')
+            if not has_contact:
+                user_dict['contactRequired'] = True
             return user_dict
 
     # Check if __session cookie exists
@@ -340,9 +362,10 @@ def whoami():
             session["user_email"] = user_data.get("email", "")
 
             user_dict = dict(user.map(), loggedIn=True)
-            # Check if Discord is connected
-            if not user.discord or user.discord.strip() == '':
-                user_dict['discordRequired'] = True
+            # Check if Discord or phone number is connected
+            has_contact = (user.discord and user.discord.strip() != '') or (user.phone and user.phone.strip() != '')
+            if not has_contact:
+                user_dict['contactRequired'] = True
             return user_dict
 
     return {"loggedIn": False}
@@ -376,11 +399,13 @@ def update():
     if data["location"] == "virtual" and len(data["zoomlink"]) == 0:
         return abort(400, "Missing video call link!")
 
-    if len(data["discord"]) == 0:
-        return abort(400, "Missing discord!")
+    # At least one contact method is required
+    if (len(data.get("discord", "")) == 0 and len(data.get("phone", "")) == 0):
+        return abort(400, "Missing contact information! Please provide either Discord or phone number.")
 
     user.location = data["location"]
     user.zoomlink = data["zoomlink"]
-    user.discord = data["discord"]
+    user.discord = data.get("discord", "")
+    user.phone = data.get("phone", "")
     db.session.commit()
     return {"message": "Your information has been updated!"}

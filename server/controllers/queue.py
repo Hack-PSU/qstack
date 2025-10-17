@@ -41,6 +41,7 @@ def claim():
 
     ticket.status = "claimed"
     ticket.claimant = user
+    ticket.claimant_name = session.get("user_name", "Mentor")
     ticket.active = False
     user.claimed = ticket
     ticket.claimedAt = db.func.now()
@@ -64,6 +65,7 @@ def unclaim():
     ticket.active = True
     ticket.claimant = None
     ticket.claimant_id = None
+    ticket.claimant_name = None
     ticket.status = None
     user.claimed = None
     ticket.claimedAt = None
