@@ -22,6 +22,7 @@ class User(db.Model):
     location = Column(Text, nullable=False)
     zoomlink = Column(Text, nullable=False)
     discord = Column(Text, nullable=False)
+    phone = Column(Text, nullable=False)
     resolved_tickets = Column(Integer)
     ratings = Column(MutableList.as_mutable(ARRAY(Numeric(2, 1))))
     reviews = Column(MutableList.as_mutable(ARRAY(Text)), nullable=False)
@@ -35,6 +36,7 @@ class User(db.Model):
         self.location = "in person"
         self.zoomlink = ""
         self.discord = ""
+        self.phone = ""
         self.resolved_tickets = 0
         self.ratings = []
         self.reviews = []
@@ -53,6 +55,7 @@ class User(db.Model):
             "location": self.location,
             "zoomlink": self.zoomlink,
             "discord": self.discord,
+            "phone": self.phone,
             "resolved_tickets": (
                 self.resolved_tickets if self.role == "mentor" else "Not Applicable"
             ),

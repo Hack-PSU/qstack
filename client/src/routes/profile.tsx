@@ -13,7 +13,7 @@ import { notifications } from "@mantine/notifications";
 import * as auth from "../api/auth";
 
 export default function ProfilePage() {
-  const [name, email, role, location, zoomlink, getUser, discord] =
+  const [name, email, role, location, zoomlink, getUser, discord, phone] =
     useUserStore((store) => [
       store.name,
       store.email,
@@ -22,6 +22,7 @@ export default function ProfilePage() {
       store.zoomlink,
       store.getUser,
       store.discord,
+      store.phone,
     ]);
 
   const [user, updateUser] = useState<auth.UserInfo>({
@@ -32,6 +33,7 @@ export default function ProfilePage() {
     zoomlink: zoomlink,
     password: "",
     discord: discord,
+    phone: phone,
   });
 
   useEffect(() => {
@@ -43,8 +45,9 @@ export default function ProfilePage() {
       zoomlink: zoomlink,
       password: "",
       discord: discord,
+      phone: phone,
     });
-  }, [name, email, role, location, zoomlink, discord]);
+  }, [name, email, role, location, zoomlink, discord, phone]);
 
   const handleUserUpdate = async () => {
     const res = await auth.updateUser(user);
@@ -88,7 +91,16 @@ export default function ProfilePage() {
             value={user.discord}
             onChange={(e) => updateUser({ ...user, discord: e.target.value })}
           />
+          <TextInput
+            label="Phone Number"
+            size="md"
+            value={user.phone}
+            onChange={(e) => updateUser({ ...user, phone: e.target.value })}
+          />
         </Group>
+        <Text size="sm" c="dimmed" mt="xs">
+          Please provide at least one contact method (Discord or Phone)
+        </Text>
         <Text className="text-weight-500" mt="lg">
           User Role
         </Text>

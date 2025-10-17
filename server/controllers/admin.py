@@ -58,10 +58,78 @@ def getUserData():
 
     userData = []
     for user in users:
-        userMap = user.map()
+        # Don't use user.map() as it gets name/email from current session (admin's session)
+        # Instead, build the user data manually with API data
+        api_info = info.get(user.id, {})
 
-        userMap["name"] = info.get(user.id, {}).get('name', None)
-        userMap["email"] = info.get(user.id, {}).get('email', None)
+        userMap = {
+            "id": user.id,
+            "name": api_info.get('name', 'Unknown User'),
+            "email": api_info.get('email', 'No Email'),
+            "role": user.role,
+            "location": user.location,
+            "zoomlink": user.zoomlink,
+            "discord": user.discord,
+            "phone": user.phone,
+            "resolved_tickets": (
+                user.resolved_tickets if user.role == "mentor" else "Not Applicable"
+            ),
+            "ratings": (
+                sum(user.ratings) / len(user.ratings)
+                if user.role == "mentor" and user.ratings and len(user.ratings) != 0
+                else None
+            ),
+            "reviews": user.reviews if user.reviews != None else [],
+        }
+
         userData.append(userMap)
 
     return userData
+
+
+@admin.route("/alltickets")
+@auth_required_decorator(roles=["admin"])
+def getAllTickets():
+    """Get all tickets with creator and mentor information"""
+    tickets = Ticket.query.order_by(Ticket.createdAt.desc()).all()
+
+    # Get all unique user IDs (creators and claimants)
+    user_ids = set()
+    for ticket in tickets:
+        if ticket.creator_id:
+            user_ids.add(str(ticket.creator_id))
+        if ticket.claimant_id:
+            user_ids.add(str(ticket.claimant_id))
+
+    # Fetch user info from HackPSU API
+    info = get_user_info(list(user_ids))
+
+    ticketData = []
+    for ticket in tickets:
+        # Get creator info (prefer stored name/email, fallback to API)
+        creator_name = ticket.creator_name if ticket.creator_name else info.get(ticket.creator_id, {}).get('name', 'Unknown User')
+        creator_email = ticket.creator_email if ticket.creator_email else info.get(ticket.creator_id, {}).get('email', 'No Email')
+
+        # Get mentor info (prefer stored name, fallback to API)
+        mentor_name = None
+        if ticket.claimant_id:
+            mentor_name = ticket.claimant_name if ticket.claimant_name else info.get(ticket.claimant_id, {}).get('name', 'Unknown Mentor')
+
+        ticketData.append({
+            "id": ticket.id,
+            "question": ticket.question,
+            "creator_name": creator_name,
+            "creator_email": creator_email,
+            "creator_discord": ticket.creator.discord if ticket.creator else "",
+            "creator_phone": ticket.creator.phone if ticket.creator else "",
+            "mentor_name": mentor_name,
+            "mentor_id": ticket.claimant_id,
+            "status": ticket.status,
+            "active": ticket.active,
+            "createdAt": ticket.createdAt.isoformat() if ticket.createdAt else None,
+            "claimedAt": ticket.claimedAt.isoformat() if ticket.claimedAt else None,
+            "location": ticket.location,
+            "tags": ticket.tags
+        })
+
+    return ticketData

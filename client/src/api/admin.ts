@@ -7,3 +7,8 @@ export async function getUserStats() {
   const res = await fetch("/api/admin/userdata");
   return { ok: res.ok, tags: JSON.parse(await res.text()) };
 }
+
+export async function getAllTickets() {
+  const res = await fetch("/api/admin/alltickets");
+  return { ok: res.ok, tickets: JSON.parse(await res.text()) };
+}
