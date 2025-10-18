@@ -210,11 +210,15 @@ export default function TicketPage() {
     setIsSubmitting(true);
     const rating = ratings.get(ratedTicket.id) as number;
     const review = reviews.get(ratedTicket.id) || "";
+
+    const userName = sessionStorage.getItem("chatName") || "Anonymous";
+
     const res = await ticket.rate(
       ratedTicket.id,
       ratedTicket.mentor_id,
       rating,
-      review
+      review,
+      userName
     );
     if (res.ok) {
       notifications.show({

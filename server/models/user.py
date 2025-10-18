@@ -11,6 +11,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.mutable import MutableList
 from flask import session
+from sqlalchemy.dialects.postgresql import JSON
 from server.hackpsu_api import get_user_info, get_my_info
 
 
@@ -24,7 +25,7 @@ class User(db.Model):
     discord = Column(Text, nullable=False)
     resolved_tickets = Column(Integer)
     ratings = Column(MutableList.as_mutable(ARRAY(Numeric(2, 1))))
-    reviews = Column(MutableList.as_mutable(ARRAY(Text)), nullable=False)
+    reviews = Column(MutableList.as_mutable(JSON), default=list)
 
     ticket_id = Column(Integer, ForeignKey("tickets.id", ondelete="SET NULL"))
     ticket = relationship("Ticket", foreign_keys=[ticket_id])
