@@ -80,6 +80,8 @@ class Ticket(db.Model):
             "images": self.images,
             "creator": creator_name,
             "discord": self.creator.discord if self.creator else "",
+            "email": self.creator.email if self.creator else "",
+            "phone": self.creator.phone if self.creator else "",
             "createdAt": self.createdAt,
             "status": self.status,
             "mentor_name": mentor_name,

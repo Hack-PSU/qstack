@@ -31,6 +31,8 @@ interface ticket {
   discord: string;
   createdAt: Date;
   images: Array<string>;
+  email: string;
+  phone: string;
 }
 
 interface displayContentProps {
@@ -205,6 +207,12 @@ export default function QueuePage() {
                       <div className="mt-5">
                         Location: <Badge>{ticket.location}</Badge>
                       </div>
+                      <div className="mt-5">
+                        Hacker Email: <Badge>{ticket.email ? ticket.email : "No Email Provided"}</Badge>
+                      </div>
+                      <div className="mt-5">
+                        Hacker Phone: <Badge>{ticket.phone ? ticket.phone : "No Phone Provided"}</Badge>
+                      </div>                      
                       <div className="mt-5">
                         Discord:{" "}
                         <Badge>
