@@ -65,13 +65,13 @@ export async function getFeedback() {
   return { ok: res.ok, tickets: JSON.parse(await res.text()) };
 }
 
-export async function rate(id: number, mentor_id: number, rating: number, review: string) {
+export async function rate(id: number, mentor_id: number, rating: number, review: string, reviewerName?: string) {
   const res = await fetch("/api/ticket/rate", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ id: id, mentor_id: mentor_id, rating: rating, review: review }),
+    body: JSON.stringify({ id: id, mentor_id: mentor_id, rating: rating, review: review, reviewerName: reviewerName}),
   });
   return { ok: res.ok, ...JSON.parse(await res.text()) };
 }

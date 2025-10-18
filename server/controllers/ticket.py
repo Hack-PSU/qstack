@@ -186,7 +186,8 @@ def rate():
     if len(data["review"]) != 0:
         if not mentor.reviews:
             mentor.reviews = []
-        mentor.reviews.append(data["review"])
+        reviewer_name = session.get("user_name") or data.get("reviewerName") or "Anonymous"
+        mentor.reviews.append({"reviewer": reviewer_name, "text": data["review"]})
     db.session.commit()
 
     ticket = Ticket.query.get(int(data["id"]))
