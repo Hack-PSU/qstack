@@ -7,6 +7,7 @@ from urllib.parse import quote_plus, urlencode
 import csv
 from server.models import User, Ticket
 from server.controllers.auth import auth_required_decorator
+from server.notifications import send_ticket_notification
 
 ticket = APIBlueprint("ticket", __name__, url_prefix="/ticket")
 
@@ -82,6 +83,9 @@ def submit():
 
     user.ticket_id = ticket.id
     db.session.commit()
+
+    # Send push notification via Gotify
+    send_ticket_notification(data)
 
     return {"message": "Ticket has been created."}
 
