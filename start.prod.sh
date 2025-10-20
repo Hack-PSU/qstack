@@ -47,6 +47,6 @@ su - postgres -c "psql -d postgres -c \"GRANT ALL PRIVILEGES ON DATABASE qstackd
 
 echo "QStack database initialized"
 
-# Start Gunicorn with preload to avoid race conditions
-echo "Starting QStack application..."
-exec gunicorn -b 0.0.0.0:3001 -w 4 wsgi:app
+# Start Gunicorn with gevent worker class
+echo "Starting QStack application with gevent..."
+exec gunicorn -b 0.0.0.0:3001 -k gevent wsgi:app

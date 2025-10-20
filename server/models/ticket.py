@@ -18,7 +18,7 @@ class Ticket(db.Model):
     question = Column(Text, nullable=False)
     content = Column(Text, nullable=False)
     location = Column(Text, nullable=False)
-    tags = Column(ARRAY(Text), nullable=False)
+    tags = Column(ARRAY(Text), nullable=False, default=[])
     images = Column(ARRAY(Text), nullable=False)
 
     active = Column(Boolean, nullable=False, default=True)
@@ -32,7 +32,7 @@ class Ticket(db.Model):
         self.question = data["question"]
         self.content = data["content"]
         self.location = data["location"]
-        self.tags = data["tags"]
+        self.tags = data.get("tags", [])
         self.images = data.get("images", [])
         self.active = active
         self.createdAt = db.func.now()
@@ -44,7 +44,7 @@ class Ticket(db.Model):
         self.content = data["content"]
         self.location = data["location"]
         self.images = data.get("images", [])
-        self.tags = data["tags"]
+        self.tags = data.get("tags", [])
 
     def map(self):
         creator_name = "Unknown User"
@@ -76,6 +76,7 @@ class Ticket(db.Model):
             "tags": self.tags,
             "location": self.location,
             "images": self.images,
+            # This is now the true creator's name, not the session user's name
             "creator": creator_name,
             "discord": creator_discord,
             "email": creator_email,
@@ -83,6 +84,7 @@ class Ticket(db.Model):
             "preferred": creator_preferred,
             "createdAt": self.createdAt,
             "status": self.status,
+            # This is now the true mentor's name, not the session user's name
             "mentor_name": mentor_name,
             "mentor_id": self.claimant_id
         }
