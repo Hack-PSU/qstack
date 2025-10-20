@@ -376,11 +376,13 @@ def update():
     if data["location"] == "virtual" and len(data["zoomlink"]) == 0:
         return abort(400, "Missing video call link!")
 
-    if len(data["discord"]) == 0:
+    if len(data["discord"]) == 0 and data["preferred"] == "Discord":
         return abort(400, "Missing discord!")
 
     user.location = data["location"]
     user.zoomlink = data["zoomlink"]
     user.discord = data["discord"]
+    user.phone = data["phone"]
+    user.preferred = data["preferred"]
     db.session.commit()
     return {"message": "Your information has been updated!"}
