@@ -17,7 +17,7 @@ class Ticket(db.Model):
     question = Column(Text, nullable=False)
     content = Column(Text, nullable=False)
     location = Column(Text, nullable=False)
-    tags = Column(ARRAY(Text), nullable=False)
+    tags = Column(ARRAY(Text), nullable=False, default=[])
     images = Column(ARRAY(Text), nullable=False)
 
     active = Column(Boolean, nullable=False, default=True)
@@ -31,7 +31,7 @@ class Ticket(db.Model):
         self.question = data["question"]
         self.content = data["content"]
         self.location = data["location"]
-        self.tags = data["tags"]
+        self.tags = data.get("tags", [])
         self.images = data.get("images", [])
         self.active = active
         self.createdAt = db.func.now()
@@ -43,7 +43,7 @@ class Ticket(db.Model):
         self.content = data["content"]
         self.location = data["location"]
         self.images = data.get("images", [])
-        self.tags = data["tags"]
+        self.tags = data.get("tags", [])
 
     def map(self):
         from server.hackpsu_api import get_user_info
