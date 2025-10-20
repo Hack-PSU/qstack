@@ -2,6 +2,7 @@ from server import db
 from sqlalchemy import Column, Integer, Boolean, Text, String, ForeignKey, ARRAY, DateTime
 from sqlalchemy.orm import relationship
 from flask import request
+from flask import session as flask_session
 
 
 class Ticket(db.Model):
@@ -46,28 +47,25 @@ class Ticket(db.Model):
         self.tags = data["tags"]
 
     def map(self):
-        # Get creator name from session or relationship
-        from flask import session as flask_session
-
         creator_name = "Unknown User"
+        creator_email = ""
+        creator_discord = ""
+        creator_phone = ""
+        creator_preferred = ""
         mentor_name = None
 
-        # Try to get creator name from session if it's the current user
-        if flask_session.get('user_id') == str(self.creator_id):
-            creator_name = flask_session.get('user_name', 'Unknown User')
-        elif self.creator:
-            # Fallback: try to get from creator object (requires session context)
-            try:
-                creator_name = flask_session.get('user_name', 'User')
-            except:
-                creator_name = "User"
+        if self.creator:
+            creator_data = self.creator.map()
+            creator_name = creator_data.get("name", "User")
+            creator_email = creator_data.get("email", "")
+            creator_discord = creator_data.get("discord", "")
+            creator_phone = creator_data.get("phone", "")
+            creator_preferred = creator_data.get("preferred", "")
 
-        # Get mentor name from session if it's the current user
-        if self.claimant_id:
+        if self.claimant_id is not None:
             if flask_session.get('user_id') == str(self.claimant_id):
                 mentor_name = flask_session.get('user_name', 'Mentor')
             else:
-                # For other users, use a generic name
                 mentor_name = "Mentor"
 
         return {
@@ -79,9 +77,10 @@ class Ticket(db.Model):
             "location": self.location,
             "images": self.images,
             "creator": creator_name,
-            "discord": self.creator.discord if self.creator else "",
-            "email": self.creator.email if self.creator else "",
-            "phone": self.creator.phone if self.creator else "",
+            "discord": creator_discord,
+            "email": creator_email,
+            "phone": creator_phone,
+            "preferred": creator_preferred,
             "createdAt": self.createdAt,
             "status": self.status,
             "mentor_name": mentor_name,

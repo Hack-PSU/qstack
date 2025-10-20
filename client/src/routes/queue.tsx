@@ -33,6 +33,7 @@ interface ticket {
   images: Array<string>;
   email: string;
   phone: string;
+  preferred: string;
 }
 
 interface displayContentProps {
@@ -208,6 +209,21 @@ export default function QueuePage() {
                         Location: <Badge>{ticket.location}</Badge>
                       </div>
                       <div className="mt-5">
+                        <strong>Preferred Contact:</strong>{" "}
+                        {ticket.preferred === "Email" && ticket.email && (
+                          <Badge color="blue" size="lg">Email: {ticket.email}</Badge>
+                        )}
+                        {ticket.preferred === "Phone" && ticket.phone && (
+                          <Badge color="teal" size="lg">Phone: {ticket.phone}</Badge>
+                        )}
+                        {ticket.preferred === "Discord" && ticket.discord && (
+                          <Badge color="green" size="lg">Discord: {ticket.discord}</Badge>
+                        )}
+                        {!ticket.preferred && (
+                          <Badge color="gray">No preference set</Badge>
+                        )}
+                      </div>
+                      <div className="mt-5">
                         Hacker Email: <Badge>{ticket.email ? ticket.email : "No Email Provided"}</Badge>
                       </div>
                       <div className="mt-5">
@@ -216,9 +232,7 @@ export default function QueuePage() {
                       <div className="mt-5">
                         Discord:{" "}
                         <Badge>
-                          {ticket.discord
-                            ? ticket.discord
-                            : "No Discord Provided"}
+                          {ticket.discord ? ticket.discord : "No Discord Provided"}
                         </Badge>
                       </div>
 
@@ -285,11 +299,30 @@ export default function QueuePage() {
                         Location: <Badge>{ticket.location}</Badge>
                       </div>
                       <div className="mt-5">
+                        <strong>Preferred Contact:</strong>{" "}
+                        {ticket.preferred === "Email" && ticket.email && (
+                          <Badge color="blue" size="lg">Email: {ticket.email}</Badge>
+                        )}
+                        {ticket.preferred === "Phone" && ticket.phone && (
+                          <Badge color="teal" size="lg">Phone: {ticket.phone}</Badge>
+                        )}
+                        {ticket.preferred === "Discord" && ticket.discord && (
+                          <Badge color="green" size="lg">Discord: {ticket.discord}</Badge>
+                        )}
+                        {!ticket.preferred && (
+                          <Badge color="gray">No preference set</Badge>
+                        )}
+                      </div>
+                      <div className="mt-5">
+                        Hacker Email: <Badge>{ticket.email ? ticket.email : "No Email Provided"}</Badge>
+                      </div>
+                      <div className="mt-5">
+                        Hacker Phone: <Badge>{ticket.phone ? ticket.phone : "No Phone Provided"}</Badge>
+                      </div>
+                      <div className="mt-5">
                         Discord:{" "}
                         <Badge>
-                          {ticket.discord
-                            ? ticket.discord
-                            : "No Discord Provided"}
+                          {ticket.discord ? ticket.discord : "No Discord Provided"}
                         </Badge>
                       </div>
                       <Group className="mt-5" grow>

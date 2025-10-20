@@ -316,9 +316,20 @@ def whoami():
         user = User.query.filter_by(id=session["user_id"]).first()
         if user:
             user_dict = dict(user.map(), loggedIn=True)
-            # Check if Discord is connected
-            if not user.discord or user.discord.strip() == '':
+            
+            # Check if user has any valid preferred contact method
+            has_valid_contact = False
+            if user.preferred:
+                if user.preferred == "Email" and user_dict.get("email"):
+                    has_valid_contact = True
+                elif user.preferred == "Phone" and user.phone:
+                    has_valid_contact = True
+                elif user.preferred == "Discord" and user.discord and user.discord.strip() != '':
+                    has_valid_contact = True
+            
+            if not has_valid_contact:
                 user_dict['discordRequired'] = True
+            
             return user_dict
 
     # Check if __session cookie exists
@@ -340,9 +351,20 @@ def whoami():
             session["user_email"] = user_data.get("email", "")
 
             user_dict = dict(user.map(), loggedIn=True)
-            # Check if Discord is connected
-            if not user.discord or user.discord.strip() == '':
+            
+            # Check if user has any valid preferred contact method
+            has_valid_contact = False
+            if user.preferred:
+                if user.preferred == "Email" and user_dict.get("email"):
+                    has_valid_contact = True
+                elif user.preferred == "Phone" and user.phone:
+                    has_valid_contact = True
+                elif user.preferred == "Discord" and user.discord and user.discord.strip() != '':
+                    has_valid_contact = True
+            
+            if not has_valid_contact:
                 user_dict['discordRequired'] = True
+            
             return user_dict
 
     return {"loggedIn": False}
@@ -378,6 +400,8 @@ def update():
 
     if len(data["discord"]) == 0 and data["preferred"] == "Discord":
         return abort(400, "Missing discord!")
+    if len(data["phone"]) == 0 and data["preferred"] == "Phone":
+        return abort(400, "Missing Phone number!")
 
     user.location = data["location"]
     user.zoomlink = data["zoomlink"]

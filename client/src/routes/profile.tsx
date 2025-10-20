@@ -52,7 +52,42 @@ export default function ProfilePage() {
     });
   }, [name, email, role, location, zoomlink, discord, phone, preferred]);
 
+  const formatPhoneNumber = (value: string) => {
+    // Remove all non-digits
+    const phoneDigits = value.replace(/\D/g, '');
+    
+    // Limit to 10 digits
+    const limitedDigits = phoneDigits.slice(0, 10);
+    
+    // Format as (XXX) XXX-XXXX
+    if (limitedDigits.length <= 3) {
+      return limitedDigits;
+    } else if (limitedDigits.length <= 6) {
+      return `(${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3)}`;
+    } else {
+      return `(${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3, 6)}-${limitedDigits.slice(6)}`;
+    }
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    updateUser({ ...user, phone: formatted });
+  };
+
   const handleUserUpdate = async () => {
+    // Validate phone number if Phone is selected as preferred
+    if (user.preferred === "Phone") {
+      const digits = user.phone.replace(/\D/g, '');
+      if (digits.length !== 10) {
+        notifications.show({
+          title: "Invalid Phone Number",
+          color: "red",
+          message: "Please enter a valid 10-digit US phone number",
+        });
+        return;
+      }
+    }
+
     const res = await auth.updateUser(user);
     if (res.ok) {
       notifications.show({
@@ -79,7 +114,6 @@ export default function ProfilePage() {
             label="Name"
             size="md"
             value={user.name}
-            // onChange={(e) => updateUser({ ...user, name: e.target.value })}
           />
           <TextInput
             disabled
@@ -97,8 +131,10 @@ export default function ProfilePage() {
           <TextInput
             label="Phone #"
             size="md"
+            placeholder="(123) 456-7890"
             value={user.phone}
-            onChange={(e) => updateUser({ ...user, phone: e.target.value })}
+            onChange={handlePhoneChange}
+            maxLength={14}
           />
         </Group>
         <Text className="text-weight-500" mt="lg">
@@ -129,25 +165,25 @@ export default function ProfilePage() {
           Preferred Contact Method
         </Text>
         <Group>
-              <Checkbox
-                size="md"
-                checked={user.preferred == "Email"}
-                onChange={() => updateUser({ ...user, preferred: "Email" })}
-                label={"Email"}
-              />
-              <Checkbox
-                size="md"
-                checked={user.preferred == "Phone"}
-                onChange={() => updateUser({ ...user, preferred: "Phone" })}
-                label={"Phone"}
-              />
-              <Checkbox
-                size="md"
-                checked={user.preferred == "Discord"}
-                onChange={() => updateUser({ ...user, preferred: "Discord" })}
-                label={"Discord"}
-              />
-            </Group>
+          <Checkbox
+            size="md"
+            checked={user.preferred === "Email"}
+            onChange={() => updateUser({ ...user, preferred: "Email" })}
+            label={"Email"}
+          />
+          <Checkbox
+            size="md"
+            checked={user.preferred === "Phone"}
+            onChange={() => updateUser({ ...user, preferred: "Phone" })}
+            label={"Phone"}
+          />
+          <Checkbox
+            size="md"
+            checked={user.preferred === "Discord"}
+            onChange={() => updateUser({ ...user, preferred: "Discord" })}
+            label={"Discord"}
+          />
+        </Group>
         {user.role == "mentor" && role == "hacker" && (
           <TextInput
             value={user.password}

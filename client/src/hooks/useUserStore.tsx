@@ -53,6 +53,7 @@ export const useUserStore = create<userState>((set) => ({
       window.posthog.reset();
     }
 
+    
     // Redirect to Discord connect page if required
     if (userData.discordRequired && window.location.pathname !== "/connect-discord") {
       window.location.replace("/connect-discord");
