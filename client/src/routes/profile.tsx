@@ -13,7 +13,7 @@ import { notifications } from "@mantine/notifications";
 import * as auth from "../api/auth";
 
 export default function ProfilePage() {
-  const [name, email, role, location, zoomlink, getUser, discord, phone] =
+  const [name, email, role, location, zoomlink, getUser, discord, phone, preferred] =
     useUserStore((store) => [
       store.name,
       store.email,
@@ -22,7 +22,8 @@ export default function ProfilePage() {
       store.zoomlink,
       store.getUser,
       store.discord,
-      store.phone
+      store.phone,
+      store.preferred,
     ]);
 
   const [user, updateUser] = useState<auth.UserInfo>({
@@ -34,6 +35,7 @@ export default function ProfilePage() {
     password: "",
     discord: discord,
     phone: phone,
+    preferred: preferred,
   });
 
   useEffect(() => {
@@ -46,8 +48,9 @@ export default function ProfilePage() {
       password: "",
       discord: discord,
       phone: phone,
+      preferred: preferred
     });
-  }, [name, email, role, location, zoomlink, discord]);
+  }, [name, email, role, location, zoomlink, discord, phone, preferred]);
 
   const handleUserUpdate = async () => {
     const res = await auth.updateUser(user);
@@ -79,6 +82,7 @@ export default function ProfilePage() {
             // onChange={(e) => updateUser({ ...user, name: e.target.value })}
           />
           <TextInput
+            disabled
             label="Email"
             size="md"
             width={300}
@@ -94,7 +98,7 @@ export default function ProfilePage() {
             label="Phone #"
             size="md"
             value={user.phone}
-            onChange={(e) => updateUser({ ...user, discord: e.target.value })}
+            onChange={(e) => updateUser({ ...user, phone: e.target.value })}
           />
         </Group>
         <Text className="text-weight-500" mt="lg">
@@ -121,6 +125,29 @@ export default function ProfilePage() {
             <Text className="text-weight-500">Admin</Text>
           )}
         </Group>
+        <Text className="text-weight-500" mt="lg">
+          Preferred Contact Method
+        </Text>
+        <Group>
+              <Checkbox
+                size="md"
+                checked={user.preferred == "Email"}
+                onChange={() => updateUser({ ...user, preferred: "Email" })}
+                label={"Email"}
+              />
+              <Checkbox
+                size="md"
+                checked={user.preferred == "Phone"}
+                onChange={() => updateUser({ ...user, preferred: "Phone" })}
+                label={"Phone"}
+              />
+              <Checkbox
+                size="md"
+                checked={user.preferred == "Discord"}
+                onChange={() => updateUser({ ...user, preferred: "Discord" })}
+                label={"Discord"}
+              />
+            </Group>
         {user.role == "mentor" && role == "hacker" && (
           <TextInput
             value={user.password}

@@ -21,6 +21,7 @@ interface userState {
   discord: string;
   discordRequired?: boolean;
   phone: string;
+  preferred: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getUser: () => Promise<any>;
 }
@@ -33,6 +34,7 @@ export const useUserStore = create<userState>((set) => ({
   zoomlink: "",
   discord: "",
   phone: "",
+  preferred: "",
   loggedIn: undefined,
   discordRequired: false,
   getUser: async () => {
