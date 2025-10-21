@@ -287,6 +287,27 @@ def discord_exchange_token():
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+@auth.route("/set-phone", methods=["POST"])
+def set_phone():
+    """Set user's phone number"""
+    if "user_id" not in session:
+        return {"success": False, "error": "Must be logged in first"}, 401
+
+    data = request.get_json()
+    phone = data.get("phone", "").strip()
+
+    if not phone:
+        return {"success": False, "error": "Phone number is required"}, 400
+
+    user = User.query.filter_by(id=session["user_id"]).first()
+    if not user:
+        return {"success": False, "error": "User not found"}, 404
+
+    user.phone = phone
+    db.session.commit()
+    print(f"[DEBUG] User {user.id} set phone: {phone}")
+    return {"success": True, "phone": phone}
+
 
 
 @auth.route("/set-firebase-token", methods=["POST"])
@@ -316,20 +337,12 @@ def whoami():
         user = User.query.filter_by(id=session["user_id"]).first()
         if user:
             user_dict = dict(user.map(), loggedIn=True)
-            
-            # Check if user has any valid preferred contact method
-            has_valid_contact = False
-            if user.preferred:
-                if user.preferred == "Email" and user_dict.get("email"):
-                    has_valid_contact = True
-                elif user.preferred == "Phone" and user.phone:
-                    has_valid_contact = True
-                elif user.preferred == "Discord" and user.discord and user.discord.strip() != '':
-                    has_valid_contact = True
-            
-            if not has_valid_contact:
-                user_dict['discordRequired'] = True
-            
+
+            # Check if user has either Discord or phone number
+            has_contact = (user.discord and user.discord.strip() != '') or (user.phone and user.phone.strip() != '')
+            if not has_contact:
+                user_dict['contactRequired'] = True
+
             return user_dict
 
     # Check if __session cookie exists
@@ -351,20 +364,12 @@ def whoami():
             session["user_email"] = user_data.get("email", "")
 
             user_dict = dict(user.map(), loggedIn=True)
-            
-            # Check if user has any valid preferred contact method
-            has_valid_contact = False
-            if user.preferred:
-                if user.preferred == "Email" and user_dict.get("email"):
-                    has_valid_contact = True
-                elif user.preferred == "Phone" and user.phone:
-                    has_valid_contact = True
-                elif user.preferred == "Discord" and user.discord and user.discord.strip() != '':
-                    has_valid_contact = True
-            
-            if not has_valid_contact:
-                user_dict['discordRequired'] = True
-            
+
+            # Check if user has either Discord or phone number
+            has_contact = (user.discord and user.discord.strip() != '') or (user.phone and user.phone.strip() != '')
+            if not has_contact:
+                user_dict['contactRequired'] = True
+
             return user_dict
 
     return {"loggedIn": False}
@@ -398,15 +403,20 @@ def update():
     if data["location"] == "virtual" and len(data["zoomlink"]) == 0:
         return abort(400, "Missing video call link!")
 
-    if len(data["discord"]) == 0 and data["preferred"] == "Discord":
+    # At least one contact method is required (Discord or Phone)
+    if (len(data.get("discord", "")) == 0 and len(data.get("phone", "")) == 0):
+        return abort(400, "Missing contact information! Please provide either Discord or phone number.")
+
+    # If preferred is set, validate that the preferred method has a value
+    if data.get("preferred") == "Discord" and len(data.get("discord", "")) == 0:
         return abort(400, "Missing discord!")
-    if len(data["phone"]) == 0 and data["preferred"] == "Phone":
+    if data.get("preferred") == "Phone" and len(data.get("phone", "")) == 0:
         return abort(400, "Missing Phone number!")
 
     user.location = data["location"]
     user.zoomlink = data["zoomlink"]
-    user.discord = data["discord"]
-    user.phone = data["phone"]
-    user.preferred = data["preferred"]
+    user.discord = data.get("discord", "")
+    user.phone = data.get("phone", "")
+    user.preferred = data.get("preferred")
     db.session.commit()
     return {"message": "Your information has been updated!"}

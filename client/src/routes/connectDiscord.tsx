@@ -1,23 +1,22 @@
 import { useState } from "react";
-import { Button, Container, Title, Text, Paper, Stack, Center, TextInput, Group } from "@mantine/core";
-import { IconBrandDiscord, IconMail, IconPhone } from "@tabler/icons-react";
+import { Button, Container, Title, Text, Paper, Stack, Center, TextInput, Divider } from "@mantine/core";
+import { IconBrandDiscord, IconPhone } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import * as auth from "../api/auth";
 import { useUserStore } from "../hooks/useUserStore";
 
 export default function ConnectDiscord() {
   const [isConnecting, setIsConnecting] = useState(false);
-  const [showPhoneInput, setShowPhoneInput] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
-  
-  const [name, email, role, location, zoomlink, discord, phone, getUser] = useUserStore((store) => [
+  const [isSubmittingPhone, setIsSubmittingPhone] = useState(false);
+
+  const [name, email, role, location, zoomlink, discord, getUser] = useUserStore((store) => [
     store.name,
     store.email,
     store.role,
     store.location,
     store.zoomlink,
     store.discord,
-    store.phone,
     store.getUser,
   ]);
 
@@ -30,10 +29,10 @@ export default function ConnectDiscord() {
   const formatPhoneNumber = (value: string) => {
     // Remove all non-digits
     const phoneDigits = value.replace(/\D/g, '');
-    
+
     // Limit to 10 digits
     const limitedDigits = phoneDigits.slice(0, 10);
-    
+
     // Format as (XXX) XXX-XXXX
     if (limitedDigits.length <= 3) {
       return limitedDigits;
@@ -49,35 +48,6 @@ export default function ConnectDiscord() {
     setPhoneNumber(formatted);
   };
 
-  const handleUseEmail = async () => {
-    const res = await auth.updateUser({
-      name: name,
-      email: email,
-      role: role,
-      location: location,
-      zoomlink: zoomlink,
-      password: "",
-      discord: discord,
-      phone: phone,
-      preferred: "Email"
-    });
-    
-    if (res.ok) {
-      notifications.show({
-        title: "Success!",
-        color: "green",
-        message: "Email set as preferred contact method",
-      });
-      getUser();
-    } else {
-      notifications.show({
-        title: "Error",
-        color: "red",
-        message: res.message,
-      });
-    }
-  };
-
   const handleSubmitPhone = async () => {
     // Validate phone number has exactly 10 digits
     const digits = phoneNumber.replace(/\D/g, '');
@@ -90,31 +60,42 @@ export default function ConnectDiscord() {
       return;
     }
 
-    const res = await auth.updateUser({
-      name: name,
-      email: email,
-      role: role,
-      location: location,
-      zoomlink: zoomlink,
-      password: "",
-      discord: discord,
-      phone: phoneNumber,
-      preferred: "Phone"
-    });
-    
-    if (res.ok) {
-      notifications.show({
-        title: "Success!",
-        color: "green",
-        message: "Phone number saved as preferred contact method",
+    setIsSubmittingPhone(true);
+    try {
+      const res = await auth.updateUser({
+        name: name,
+        email: email,
+        role: role,
+        location: location,
+        zoomlink: zoomlink,
+        password: "",
+        discord: discord,
+        phone: phoneNumber,
+        preferred: "Phone"
       });
-      getUser();
-    } else {
+
+      if (res.ok) {
+        notifications.show({
+          title: "Success!",
+          color: "green",
+          message: "Phone number saved as preferred contact method",
+        });
+        getUser();
+      } else {
+        notifications.show({
+          title: "Error",
+          color: "red",
+          message: res.message,
+        });
+      }
+    } catch (error) {
       notifications.show({
         title: "Error",
+        message: "Failed to save phone number",
         color: "red",
-        message: res.message,
       });
+    } finally {
+      setIsSubmittingPhone(false);
     }
   };
 
@@ -125,15 +106,15 @@ export default function ConnectDiscord() {
           <IconBrandDiscord size={64} color="#5865F2" />
 
           <Title order={2} ta="center">
-            Connect Your Discord Account
+            Connect Your Contact Information
           </Title>
 
           <Text ta="center" c="dimmed">
-            To use QStack, you need to connect your Discord account.
+            To use QStack, you need to provide contact information.
             This allows mentors and organizers to reach you for help.
           </Text>
 
-          <Center>
+          <Center w="100%">
             <Button
               leftSection={<IconBrandDiscord size={20} />}
               size="lg"
@@ -151,49 +132,38 @@ export default function ConnectDiscord() {
             You'll be redirected to Discord to authorize QStack
           </Text>
 
-          <Text ta="center" fw={500} mt="md">
-            Or choose an alternative contact method:
-          </Text>
+          <Divider label="OR" labelPosition="center" w="100%" />
 
-          <Group grow style={{ width: '100%' }}>
-            <Button
-              leftSection={<IconMail size={20} />}
-              variant="light"
-              color="blue"
-              onClick={handleUseEmail}
-            >
-              Use Your Email
-            </Button>
+          <Stack gap="md" w="100%">
+            <Text ta="center" c="dimmed" size="sm">
+              Prefer not to use Discord? Provide your phone number instead:
+            </Text>
 
-            <Button
+            <TextInput
               leftSection={<IconPhone size={20} />}
-              variant="light"
-              color="teal"
-              onClick={() => setShowPhoneInput(!showPhoneInput)}
-            >
-              {showPhoneInput ? "Cancel" : "Add Phone Number"}
-            </Button>
-          </Group>
+              placeholder="(123) 456-7890"
+              value={phoneNumber}
+              onChange={handlePhoneChange}
+              maxLength={14}
+              size="md"
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  handleSubmitPhone();
+                }
+              }}
+            />
 
-          {showPhoneInput && (
-            <Stack gap="md" style={{ width: '100%' }}>
-              <TextInput
-                label="Phone Number"
-                placeholder="(123) 456-7890"
-                value={phoneNumber}
-                onChange={handlePhoneChange}
-                maxLength={14}
-                size="md"
-              />
-              <Button
-                onClick={handleSubmitPhone}
-                color="teal"
-                disabled={phoneNumber.replace(/\D/g, '').length !== 10}
-              >
-                Save Phone Number
-              </Button>
-            </Stack>
-          )}
+            <Button
+              size="lg"
+              color="teal"
+              onClick={handleSubmitPhone}
+              loading={isSubmittingPhone}
+              disabled={isSubmittingPhone || phoneNumber.replace(/\D/g, '').length !== 10}
+              fullWidth
+            >
+              Submit Phone Number
+            </Button>
+          </Stack>
         </Stack>
       </Paper>
     </Container>

@@ -55,10 +55,10 @@ export default function ProfilePage() {
   const formatPhoneNumber = (value: string) => {
     // Remove all non-digits
     const phoneDigits = value.replace(/\D/g, '');
-    
+
     // Limit to 10 digits
     const limitedDigits = phoneDigits.slice(0, 10);
-    
+
     // Format as (XXX) XXX-XXXX
     if (limitedDigits.length <= 3) {
       return limitedDigits;
@@ -137,6 +137,9 @@ export default function ProfilePage() {
             maxLength={14}
           />
         </Group>
+        <Text size="sm" c="dimmed" mt="xs">
+          Please provide at least one contact method (Discord or Phone)
+        </Text>
         <Text className="text-weight-500" mt="lg">
           User Role
         </Text>

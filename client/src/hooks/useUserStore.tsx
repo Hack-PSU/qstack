@@ -19,9 +19,10 @@ interface userState {
   location: string;
   zoomlink: string;
   discord: string;
-  discordRequired?: boolean;
   phone: string;
   preferred: string;
+  discordRequired?: boolean;
+  contactRequired?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getUser: () => Promise<any>;
 }
@@ -37,6 +38,7 @@ export const useUserStore = create<userState>((set) => ({
   preferred: "",
   loggedIn: undefined,
   discordRequired: false,
+  contactRequired: false,
   getUser: async () => {
     const userData = await auth.whoami();
     set(userData);
@@ -53,9 +55,9 @@ export const useUserStore = create<userState>((set) => ({
       window.posthog.reset();
     }
 
-    
-    // Redirect to Discord connect page if required
-    if (userData.discordRequired && window.location.pathname !== "/connect-discord") {
+
+    // Redirect to contact info connect page if required
+    if ((userData.discordRequired || userData.contactRequired) && window.location.pathname !== "/connect-discord") {
       window.location.replace("/connect-discord");
     }
 

@@ -37,8 +37,12 @@ def save():
     ):
         return abort(404, "Make sure to fill every field!")
 
+    # Get creator email and name from session
+    creator_email = session.get("user_email", "")
+    creator_name = session.get("user_name", "User")
+
     if not user.ticket_id:
-        ticket = Ticket(user, data, False)
+        ticket = Ticket(user, data, False, creator_email, creator_name)
         db.session.add(ticket)
         db.session.commit()
         user.ticket_id = ticket.id
@@ -75,7 +79,11 @@ def submit():
     ):
         return abort(404, "Make sure to fill every field!")
 
-    ticket = Ticket(user, data, True)
+    # Get creator email and name from session
+    creator_email = session.get("user_email", "")
+    creator_name = session.get("user_name", "User")
+
+    ticket = Ticket(user, data, True, creator_email, creator_name)
     db.session.add(ticket)
     db.session.commit()
 
@@ -194,8 +202,12 @@ def rate():
 
     ticket = Ticket.query.get(int(data["id"]))
     ticket.status = "completed"
-    db.session.delete(ticket)
     ticket.active = False
+
+    # Clear the user's ticket_id reference so they can create a new ticket
+    user = User.query.filter_by(id=session["user_id"]).first()
+    if user and user.ticket_id == ticket.id:
+        user.ticket_id = None
 
     db.session.commit()
 

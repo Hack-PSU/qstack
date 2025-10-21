@@ -200,15 +200,16 @@ def hackpsu_auth_required(f):
 
         print(f"[DEBUG] Auth successful, session set for: {user.id}")
 
-        # Check if Discord is connected
-        if not user.discord or user.discord.strip() == '':
-            print(f"[DEBUG] User {user.id} has no Discord connected, needs to connect")
+        # Check if Discord or phone number is connected
+        has_contact = (user.discord and user.discord.strip() != '') or (user.phone and user.phone.strip() != '')
+        if not has_contact:
+            print(f"[DEBUG] User {user.id} has no Discord or phone connected, needs to connect")
             from server.config import FRONTEND_URL
-            # Return JSON response indicating Discord is required
+            # Return JSON response indicating contact info is required
             # Frontend will handle showing the connect screen
             return {
-                'error': 'discord_required',
-                'message': 'Please connect your Discord account to continue',
+                'error': 'contact_required',
+                'message': 'Please connect your Discord account or provide your phone number to continue',
                 'redirect': f'{FRONTEND_URL}/connect-discord'
             }, 403
 
@@ -273,7 +274,8 @@ def sync_user_from_auth_server(user_data):
             role=role,
             location='in person',
             zoomlink='',
-            discord=''
+            discord='',
+            phone=''
         )
         db.session.add(user)
         db.session.commit()
