@@ -80,7 +80,9 @@ export default function ConnectDiscord() {
           color: "green",
           message: "Phone number saved as preferred contact method",
         });
-        getUser();
+        await getUser();
+        // Redirect to home page after successful submission
+        window.location.href = "/home";
       } else {
         notifications.show({
           title: "Error",
