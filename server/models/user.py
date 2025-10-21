@@ -7,10 +7,12 @@ from sqlalchemy import (
     ARRAY,
     Numeric,
     String,
+    Enum,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.mutable import MutableList
 from flask import session
+from sqlalchemy.dialects.postgresql import JSON
 from server.hackpsu_api import get_user_info, get_my_info
 
 
@@ -23,9 +25,10 @@ class User(db.Model):
     zoomlink = Column(Text, nullable=False)
     discord = Column(Text, nullable=False)
     phone = Column(Text, nullable=False)
+    preferred = Column(Enum('Email', 'Phone', 'Discord', name='preferred_contact', create_type=False), nullable=True)
     resolved_tickets = Column(Integer)
     ratings = Column(MutableList.as_mutable(ARRAY(Numeric(2, 1))))
-    reviews = Column(MutableList.as_mutable(ARRAY(Text)), nullable=False)
+    reviews = Column(MutableList.as_mutable(JSON), default=list)
 
     ticket_id = Column(Integer, ForeignKey("tickets.id", ondelete="SET NULL"))
     ticket = relationship("Ticket", foreign_keys=[ticket_id])
@@ -37,6 +40,7 @@ class User(db.Model):
         self.zoomlink = ""
         self.discord = ""
         self.phone = ""
+        self.preferred = kwargs.get('preferred')
         self.resolved_tickets = 0
         self.ratings = []
         self.reviews = []
@@ -65,4 +69,5 @@ class User(db.Model):
                 else None
             ),
             "reviews": self.reviews if self.reviews != None else [],
+            "preferred": self.preferred
         }

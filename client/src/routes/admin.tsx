@@ -27,7 +27,7 @@ interface user {
   role: string;
   location: string;
   discord: string;
-  reviews: Array<string>;
+  reviews: Array<string | { reviewer: string; text: string }>;
   id: number;
 }
 
@@ -204,7 +204,13 @@ export default function AdminPanel() {
                           user.reviews.map((review, index) => (
                             <Table.Tr key={index}>
                               <Table.Td colSpan={7} style={{ paddingLeft: "2rem" }}>
-                                <strong>Review {index + 1}:</strong> {review}
+                                {typeof review === "object" ? (
+                                  <>
+                                    <strong>{review.reviewer}:</strong> {review.text}
+                                  </>
+                                ) : (
+                                  <>Review {index + 1}: {review}</>
+                                )}
                               </Table.Td>
                             </Table.Tr>
                           ))

@@ -1,32 +1,44 @@
 version: '3.8'
 
 services:
+  # HackPSU Auth Service
+  auth:
+    build:
+      context: .
+      dockerfile: Dockerfile.auth
+    container_name: qstack-auth
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.auth
+    networks:
+      - qstack-network
+  # QStack Application
   qstack:
     build: .
+    container_name: qstack-app
     ports:
       - "3002:3001"
       - "6002:6001"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     environment:
       # Flask
       APP_SECRET_KEY: local-dev-secret-key-change-me
       FRONTEND_URL: http://localhost:3002
       BACKEND_URL: http://localhost:3002
 
-      # Database
+      # Database (embedded PostgreSQL in container)
       DATABASE_URL: postgresql://postgres:password@localhost:5432/qstackdb
       SQLALCHEMY_DATABASE_URI: postgresql://postgres:password@localhost:5432/qstackdb
 
       # HackPSU Firebase Auth
-      AUTH_ENVIRONMENT: staging
+      AUTH_ENVIRONMENT: production
       MIN_ACCESS_ROLE: 0
       MIN_ADMIN_ROLE: 1
       
-      # Use host.docker.internal to reach host machine from container
-      AUTH_SERVER_URL: http://host.docker.internal:3000/api/sessionUser
+      # Updated to use container networking instead of host.docker.internal
+      AUTH_SERVER_URL: http://auth:3000/api/sessionUser
       AUTH_LOGIN_URL: http://localhost:3000/login
-      AUTH_LOGOUT_URL: http://localhost:3000/api/sessionLogout
+      AUTH_LOGOUT_URL: http://auth:3000/api/sessionLogout
       QSTACK_URL: http://localhost:3002
 
       # Optional
@@ -37,11 +49,19 @@ services:
       HACKPSU_API_URL: https://apiv3.hackpsu.org
 
       # Discord OAuth (optional) - Set via environment variables
-      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
-      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - qstack-network
+    env_file:
+      - .env
 
 volumes:
   postgres_data:
+
+networks:
+  qstack-network:
+    driver: bridge

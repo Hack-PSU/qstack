@@ -7,6 +7,7 @@ from urllib.parse import quote_plus, urlencode
 import csv
 from server.models import User, Ticket
 from server.controllers.auth import auth_required_decorator
+from server.notifications import send_ticket_notification
 
 ticket = APIBlueprint("ticket", __name__, url_prefix="/ticket")
 
@@ -33,7 +34,6 @@ def save():
         len(data["question"]) == 0
         or len(data["content"]) == 0
         or len(data["location"]) == 0
-        or len(data["tags"]) == 0
     ):
         return abort(404, "Make sure to fill every field!")
 
@@ -76,7 +76,6 @@ def submit():
         len(data["question"]) == 0
         or len(data["content"]) == 0
         or len(data["location"]) == 0
-        or len(data["tags"]) == 0
     ):
         return abort(404, "Make sure to fill every field!")
 
@@ -90,6 +89,9 @@ def submit():
 
     user.ticket_id = ticket.id
     db.session.commit()
+
+    # Send push notification via Gotify
+    send_ticket_notification(data)
 
     return {"message": "Ticket has been created."}
 
@@ -194,7 +196,8 @@ def rate():
     if len(data["review"]) != 0:
         if not mentor.reviews:
             mentor.reviews = []
-        mentor.reviews.append(data["review"])
+        reviewer_name = session.get("user_name") or data.get("reviewerName") or "Anonymous"
+        mentor.reviews.append({"reviewer": reviewer_name, "text": data["review"]})
     db.session.commit()
 
     ticket = Ticket.query.get(int(data["id"]))

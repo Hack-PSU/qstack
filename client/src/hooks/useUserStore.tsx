@@ -20,6 +20,7 @@ interface userState {
   zoomlink: string;
   discord: string;
   phone: string;
+  preferred: string;
   discordRequired?: boolean;
   contactRequired?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,6 +35,7 @@ export const useUserStore = create<userState>((set) => ({
   zoomlink: "",
   discord: "",
   phone: "",
+  preferred: "",
   loggedIn: undefined,
   discordRequired: false,
   contactRequired: false,
@@ -53,7 +55,8 @@ export const useUserStore = create<userState>((set) => ({
       window.posthog.reset();
     }
 
-    // Redirect to contact info connect page if required (for both Discord and phone)
+
+    // Redirect to contact info connect page if required
     if ((userData.discordRequired || userData.contactRequired) && window.location.pathname !== "/connect-discord") {
       window.location.replace("/connect-discord");
     }

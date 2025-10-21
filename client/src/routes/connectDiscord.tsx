@@ -2,11 +2,23 @@ import { useState } from "react";
 import { Button, Container, Title, Text, Paper, Stack, Center, TextInput, Divider } from "@mantine/core";
 import { IconBrandDiscord, IconPhone } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
+import * as auth from "../api/auth";
+import { useUserStore } from "../hooks/useUserStore";
 
 export default function ConnectDiscord() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isSubmittingPhone, setIsSubmittingPhone] = useState(false);
+
+  const [name, email, role, location, zoomlink, discord, getUser] = useUserStore((store) => [
+    store.name,
+    store.email,
+    store.role,
+    store.location,
+    store.zoomlink,
+    store.discord,
+    store.getUser,
+  ]);
 
   const handleConnectDiscord = () => {
     setIsConnecting(true);
@@ -14,43 +26,66 @@ export default function ConnectDiscord() {
     window.location.href = "/api/auth/discord/login";
   };
 
+  const formatPhoneNumber = (value: string) => {
+    // Remove all non-digits
+    const phoneDigits = value.replace(/\D/g, '');
+
+    // Limit to 10 digits
+    const limitedDigits = phoneDigits.slice(0, 10);
+
+    // Format as (XXX) XXX-XXXX
+    if (limitedDigits.length <= 3) {
+      return limitedDigits;
+    } else if (limitedDigits.length <= 6) {
+      return `(${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3)}`;
+    } else {
+      return `(${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3, 6)}-${limitedDigits.slice(6)}`;
+    }
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setPhoneNumber(formatted);
+  };
+
   const handleSubmitPhone = async () => {
-    if (!phoneNumber.trim()) {
+    // Validate phone number has exactly 10 digits
+    const digits = phoneNumber.replace(/\D/g, '');
+    if (digits.length !== 10) {
       notifications.show({
-        title: "Error",
-        message: "Please enter a valid phone number",
+        title: "Invalid Phone Number",
         color: "red",
+        message: "Please enter a valid 10-digit US phone number",
       });
       return;
     }
 
     setIsSubmittingPhone(true);
     try {
-      const response = await fetch("/api/auth/set-phone", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ phone: phoneNumber }),
+      const res = await auth.updateUser({
+        name: name,
+        email: email,
+        role: role,
+        location: location,
+        zoomlink: zoomlink,
+        password: "",
+        discord: discord,
+        phone: phoneNumber,
+        preferred: "Phone"
       });
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (res.ok) {
         notifications.show({
-          title: "Success",
-          message: "Phone number saved successfully!",
+          title: "Success!",
           color: "green",
+          message: "Phone number saved as preferred contact method",
         });
-        // Redirect to home after successful phone submission
-        setTimeout(() => {
-          window.location.href = "/home";
-        }, 1000);
+        getUser();
       } else {
         notifications.show({
           title: "Error",
-          message: data.error || "Failed to save phone number",
           color: "red",
+          message: res.message,
         });
       }
     } catch (error) {
@@ -106,9 +141,10 @@ export default function ConnectDiscord() {
 
             <TextInput
               leftSection={<IconPhone size={20} />}
-              placeholder="Enter your phone number"
+              placeholder="(123) 456-7890"
               value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.currentTarget.value)}
+              onChange={handlePhoneChange}
+              maxLength={14}
               size="md"
               onKeyPress={(e) => {
                 if (e.key === "Enter") {
@@ -122,7 +158,7 @@ export default function ConnectDiscord() {
               color="teal"
               onClick={handleSubmitPhone}
               loading={isSubmittingPhone}
-              disabled={isSubmittingPhone || !phoneNumber.trim()}
+              disabled={isSubmittingPhone || phoneNumber.replace(/\D/g, '').length !== 10}
               fullWidth
             >
               Submit Phone Number
