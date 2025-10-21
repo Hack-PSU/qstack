@@ -26,11 +26,15 @@ interface ticket {
   tags: Array<string>;
   location: string;
   creator: string;
+  creator_email: string;
   active: boolean;
   name: string;
   discord: string;
+  phone: string;
   createdAt: Date;
   images: Array<string>;
+  email: string;
+  preferred: string;
 }
 
 interface displayContentProps {
@@ -65,6 +69,8 @@ export default function QueuePage() {
   const [tickets, setTickets] = useState<Array<ticket>>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [claimed, setClaimed] = useState<number | undefined>(undefined);
+  const [previousTicketCount, setPreviousTicketCount] = useState<number>(0);
+  const [soundPlayed, setSoundPlayed] = useState<boolean>(false);
 
   const getTickets = useCallback(() => {
     queue
@@ -76,6 +82,35 @@ export default function QueuePage() {
               new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
             );
           });
+
+          // Count active tickets
+          const activeTicketCount = sortedTickets.filter((t: ticket) => t.active).length;
+
+          // Check if new tickets arrived (only if we have a previous count and it's not the initial load)
+          if (previousTicketCount > 0 && activeTicketCount > previousTicketCount && !soundPlayed) {
+            // Play notification sound
+            const playSound = () => {
+              const audio = new Audio("/notif.mp3");
+              audio.play();
+            };
+            playSound();
+
+            // Show notification
+            const newTicketCount = activeTicketCount - previousTicketCount;
+            notifications.show({
+              title: "New Ticket(s) Arrived!",
+              message: `${newTicketCount} new ticket${newTicketCount > 1 ? 's' : ''} in the queue`,
+              color: "blue",
+            });
+
+            setSoundPlayed(true);
+            // Reset sound flag after 2 seconds to allow future notifications
+            setTimeout(() => setSoundPlayed(false), 2000);
+          }
+
+          // Update previous count
+          setPreviousTicketCount(activeTicketCount);
+
           setTickets(sortedTickets);
           setLoading(false);
         } else {
@@ -86,7 +121,7 @@ export default function QueuePage() {
         console.error(error);
         navigate("/error");
       });
-  }, [setTickets, setLoading, navigate]);
+  }, [setTickets, setLoading, navigate, previousTicketCount, soundPlayed]);
 
   useEffect(() => {
     getTickets();
@@ -203,16 +238,48 @@ export default function QueuePage() {
                         Hacker Name: <Badge>{ticket.creator ? ticket.creator : "No Name Provided"}</Badge>
                       </div>
                       <div className="mt-5">
+                        Email: <Badge color="blue">{ticket.creator_email || "No Email Provided"}</Badge>
+                      </div>
+                      <div className="mt-5">
                         Location: <Badge>{ticket.location}</Badge>
                       </div>
                       <div className="mt-5">
+                        <strong>Preferred Contact:</strong>{" "}
+                        {ticket.preferred === "Email" && ticket.email && (
+                          <Badge color="blue" size="lg">Email: {ticket.email}</Badge>
+                        )}
+                        {ticket.preferred === "Phone" && ticket.phone && (
+                          <Badge color="teal" size="lg">Phone: {ticket.phone}</Badge>
+                        )}
+                        {ticket.preferred === "Discord" && ticket.discord && (
+                          <Badge color="green" size="lg">Discord: {ticket.discord}</Badge>
+                        )}
+                        {!ticket.preferred && (
+                          <Badge color="gray">No preference set</Badge>
+                        )}
+                      </div>
+                      <div className="mt-5">
+                        Hacker Email: <Badge>{ticket.email ? ticket.email : "No Email Provided"}</Badge>
+                      </div>
+                      <div className="mt-5">
+                        Hacker Phone: <Badge>{ticket.phone ? ticket.phone : "No Phone Provided"}</Badge>
+                      </div>                      
+                      <div className="mt-5">
                         Discord:{" "}
-                        <Badge>
+                        <Badge color="indigo">
                           {ticket.discord
                             ? ticket.discord
                             : "No Discord Provided"}
                         </Badge>
                       </div>
+                      {ticket.phone && (
+                        <div className="mt-5">
+                          Phone:{" "}
+                          <Badge color="teal">
+                            {ticket.phone}
+                          </Badge>
+                        </div>
+                      )}
 
                       <div className="mt-5 text-md">
                         Ticket Created At:{" "}
@@ -274,16 +341,48 @@ export default function QueuePage() {
                         Hacker Name: <Badge>{ticket.creator ? ticket.creator : "No Name Provided"}</Badge>
                       </div>
                       <div className="mt-5">
+                        Email: <Badge color="blue">{ticket.creator_email || "No Email Provided"}</Badge>
+                      </div>
+                      <div className="mt-5">
                         Location: <Badge>{ticket.location}</Badge>
                       </div>
                       <div className="mt-5">
+                        <strong>Preferred Contact:</strong>{" "}
+                        {ticket.preferred === "Email" && ticket.email && (
+                          <Badge color="blue" size="lg">Email: {ticket.email}</Badge>
+                        )}
+                        {ticket.preferred === "Phone" && ticket.phone && (
+                          <Badge color="teal" size="lg">Phone: {ticket.phone}</Badge>
+                        )}
+                        {ticket.preferred === "Discord" && ticket.discord && (
+                          <Badge color="green" size="lg">Discord: {ticket.discord}</Badge>
+                        )}
+                        {!ticket.preferred && (
+                          <Badge color="gray">No preference set</Badge>
+                        )}
+                      </div>
+                      <div className="mt-5">
+                        Hacker Email: <Badge>{ticket.email ? ticket.email : "No Email Provided"}</Badge>
+                      </div>
+                      <div className="mt-5">
+                        Hacker Phone: <Badge>{ticket.phone ? ticket.phone : "No Phone Provided"}</Badge>
+                      </div>
+                      <div className="mt-5">
                         Discord:{" "}
-                        <Badge>
+                        <Badge color="indigo">
                           {ticket.discord
                             ? ticket.discord
                             : "No Discord Provided"}
                         </Badge>
                       </div>
+                      {ticket.phone && (
+                        <div className="mt-5">
+                          Phone:{" "}
+                          <Badge color="teal">
+                            {ticket.phone}
+                          </Badge>
+                        </div>
+                      )}
                       <Group className="mt-5" grow>
                         <Button
                           onClick={() =>

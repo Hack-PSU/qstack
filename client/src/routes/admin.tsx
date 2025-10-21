@@ -31,11 +31,29 @@ interface user {
   id: number;
 }
 
+interface adminTicket {
+  id: number;
+  question: string;
+  creator_name: string;
+  creator_email: string;
+  creator_discord: string;
+  creator_phone: string;
+  mentor_name: string | null;
+  mentor_id: string | null;
+  status: string;
+  active: boolean;
+  createdAt: string;
+  claimedAt: string | null;
+  location: string;
+  tags: Array<string>;
+}
+
 export default function AdminPanel() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState<boolean>(true);
   const [ticketStats, setTicketStats] = useState<ticket>();
   const [users, setUsers] = useState<Array<user>>([]);
+  const [allTickets, setAllTickets] = useState<Array<adminTicket>>([]);
   const [expandedUserId, setExpandedUserId] = useState<number | null>(null); // Track which user's row is expanded
 
   const toggleExpandRow = (userId: number) => {
@@ -46,6 +64,7 @@ export default function AdminPanel() {
     try {
       const ticketRes = await admin.getTicketStats();
       const userRes = await admin.getUserStats();
+      const ticketsRes = await admin.getAllTickets();
 
       if (!ticketRes.ok) {
         throw new Error("Ticket stats fetch failed");
@@ -63,6 +82,11 @@ export default function AdminPanel() {
 
       if (userRes.ok) {
         setUsers(userRes.tags);
+        setLoading(false);
+      }
+
+      if (ticketsRes.ok) {
+        setAllTickets(ticketsRes.tickets);
         setLoading(false);
       }
     } catch (error) {
@@ -200,6 +224,80 @@ export default function AdminPanel() {
                       </>
                     )}
                   </React.Fragment>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </Group>
+        )}
+
+        {allTickets?.length > 0 && (
+          <Group
+            style={{
+              justifyContent: "space-between",
+              alignItems: "center",
+              borderBottom: "1px solid #333",
+              padding: "1rem 0",
+              marginTop: "2rem",
+            }}
+          >
+            <Title order={2} style={{ marginBottom: "0.5rem" }}>
+              All Tickets
+            </Title>
+            <Table
+              striped
+              borderColor="grey"
+              withColumnBorders
+              highlightOnHover
+              style={{ marginTop: "1rem" }}
+            >
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>ID</Table.Th>
+                  <Table.Th>Question</Table.Th>
+                  <Table.Th>Creator</Table.Th>
+                  <Table.Th>Creator Email</Table.Th>
+                  <Table.Th>Creator Contact</Table.Th>
+                  <Table.Th>Mentor</Table.Th>
+                  <Table.Th>Status</Table.Th>
+                  <Table.Th>Created</Table.Th>
+                  <Table.Th>Claimed</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {allTickets.map((ticket) => (
+                  <Table.Tr key={ticket.id}>
+                    <Table.Td>{ticket.id}</Table.Td>
+                    <Table.Td style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {ticket.question}
+                    </Table.Td>
+                    <Table.Td>{ticket.creator_name}</Table.Td>
+                    <Table.Td>{ticket.creator_email}</Table.Td>
+                    <Table.Td>
+                      {ticket.creator_discord && <div>Discord: {ticket.creator_discord}</div>}
+                      {ticket.creator_phone && <div>Phone: {ticket.creator_phone}</div>}
+                    </Table.Td>
+                    <Table.Td>{ticket.mentor_name || "-"}</Table.Td>
+                    <Table.Td>
+                      <span style={{
+                        padding: "0.25rem 0.5rem",
+                        borderRadius: "4px",
+                        backgroundColor:
+                          ticket.status === "completed" ? "#2d6a4f" :
+                          ticket.status === "claimed" ? "#3b5bdb" :
+                          ticket.status === "awaiting_feedback" ? "#f59f00" :
+                          ticket.active ? "#c92a2a" : "#868e96",
+                        color: "white",
+                        fontSize: "0.875rem"
+                      }}>
+                        {ticket.status === "completed" ? "Completed" :
+                         ticket.status === "claimed" ? "Claimed" :
+                         ticket.status === "awaiting_feedback" ? "Awaiting Feedback" :
+                         ticket.active ? "Unclaimed" : "Inactive"}
+                      </span>
+                    </Table.Td>
+                    <Table.Td>{new Date(ticket.createdAt).toLocaleString()}</Table.Td>
+                    <Table.Td>{ticket.claimedAt ? new Date(ticket.claimedAt).toLocaleString() : "-"}</Table.Td>
+                  </Table.Tr>
                 ))}
               </Table.Tbody>
             </Table>

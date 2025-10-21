@@ -11,6 +11,8 @@ export interface UserInfo {
   location: string;
   zoomlink: string;
   discord: string;
+  phone: string;
+  preferred: string;
 }
 
 export async function updateUser(user: UserInfo) {
