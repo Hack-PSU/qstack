@@ -238,7 +238,7 @@ export default function QueuePage() {
                         Hacker Name: <Badge>{ticket.creator ? ticket.creator : "No Name Provided"}</Badge>
                       </div>
                       <div className="mt-5">
-                        Email: <Badge color="blue">{ticket.creator_email || "No Email Provided"}</Badge>
+                        Hacker Email: <Badge color="blue">{ticket.email || "No Email Provided"}</Badge>
                       </div>
                       <div className="mt-5">
                         Location: <Badge>{ticket.location}</Badge>
@@ -257,9 +257,6 @@ export default function QueuePage() {
                         {!ticket.preferred && (
                           <Badge color="gray">No preference set</Badge>
                         )}
-                      </div>
-                      <div className="mt-5">
-                        Hacker Email: <Badge>{ticket.email ? ticket.email : "No Email Provided"}</Badge>
                       </div>
                       <div className="mt-5">
                         Hacker Phone: <Badge>{ticket.phone ? ticket.phone : "No Phone Provided"}</Badge>
