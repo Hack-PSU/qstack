@@ -37,4 +37,9 @@ accesslog = "-"
 errorlog = "-"
 loglevel = os.environ.get("LOG_LEVEL", "info")
 # Cloud Run's load balancer is the immediate peer, so log the forwarded client.
-access_log_format = '%({x-forwarded-for}i)s "%(r)s" %(s)s %(b)s %(D)sus'
+#
+# Method and path only, never %(r)s: that logs the full request line including
+# the query string, and the auth server completes login on non-hackpsu.org
+# origins by putting a session token in the URL. With %(r)s those tokens land
+# in Cloud Run's logs in full, usable for the five days they stay valid.
+access_log_format = '%({x-forwarded-for}i)s "%(m)s %(U)s" %(s)s %(b)s %(D)sus'

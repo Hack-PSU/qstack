@@ -36,24 +36,50 @@ def decode_session_token(token_string):
         return None
 
 
+SESSION_COOKIE_NAME = '__session'
+
+# Matches the auth server's SESSION_DURATION_MS (5 days).
+SESSION_MAX_AGE = 5 * 24 * 60 * 60
+
+
+def read_session_token():
+    """
+    The session token, from the cookie, a bearer header, or the login handoff.
+
+    The auth server can only set a cookie for *.hackpsu.org. For any other
+    origin -- a Cloud Run URL, a Vercel preview, localhost -- it cannot, so it
+    appends the token to the redirect as `?authToken=` instead. Reading only the
+    cookie meant login completed at the auth server and then failed here with
+    "No __session cookie found", which is exactly what happened on Cloud Run.
+    """
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    if token:
+        return token
+
+    header = request.headers.get('Authorization', '')
+    if header.startswith('Bearer '):
+        return header[7:]
+
+    return request.args.get('authToken') or None
+
+
 def verify_hackpsu_session():
     """Verify session with HackPSU auth server and decode JWT for uid"""
     try:
-        # Get the __session cookie from the request
-        session_token = request.cookies.get('__session')
+        session_token_value = read_session_token()
 
-        if not session_token:
-            print("[DEBUG] No __session cookie found")
+        if not session_token_value:
+            print("[DEBUG] No session token in cookie, header or handoff")
             return None
 
-        print(f"[DEBUG] Found __session cookie, verifying with auth server...")
+        print("[DEBUG] Found session token, verifying with auth server...")
 
         # First, verify with auth server to ensure session is valid
         import requests
         try:
             response = requests.get(
                 AUTH_SERVER_URL,
-                cookies={'__session': session_token},
+                cookies={SESSION_COOKIE_NAME: session_token_value},
                 timeout=5
             )
 
@@ -68,7 +94,7 @@ def verify_hackpsu_session():
             return None
 
         # Decode JWT to get uid and custom claims (auth server doesn't return these)
-        jwt_data = decode_session_token(session_token)
+        jwt_data = decode_session_token(session_token_value)
         if not jwt_data:
             print("[DEBUG] Failed to decode JWT")
             return None
@@ -100,7 +126,7 @@ def verify_hackpsu_session():
                 'production': jwt_data.get('production', 0),
                 'staging': jwt_data.get('staging', 0)
             },
-            'session_token': session_token  # Store session token for later use
+            'session_token': session_token_value,  # for later API calls
         }
 
         print(f"[DEBUG] Extracted user info: uid={user_info['uid']}, email={user_info['email']}, name={user_info['displayName']}, claims={user_info['customClaims']}")

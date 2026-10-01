@@ -30,7 +30,9 @@ from server.firebase_session_auth import (
     hackpsu_admin_required,
     verify_hackpsu_session,
     sync_user_from_auth_server,
-    check_access_permission
+    check_access_permission,
+    SESSION_COOKIE_NAME,
+    SESSION_MAX_AGE,
 )
 from server.hackpsu_api import get_user_info, get_my_info
 
@@ -160,7 +162,29 @@ def callback():
 
     # Get the return URL from query params, default to FRONTEND_URL/home
     return_url = request.args.get("return_url", FRONTEND_URL + "/home")
-    return redirect(return_url)
+    response = redirect(return_url)
+
+    # Persist the handoff token as a cookie.
+    #
+    # When the auth server cannot set its own cookie -- any origin that is not
+    # *.hackpsu.org -- it hands the token over in the URL instead. Without
+    # storing it, only this one request would be authenticated and every
+    # subsequent /api call from the SPA would come back 401.
+    #
+    # Redirecting away from the callback is also what gets the token out of the
+    # address bar, so it does not linger in history or leak through Referer.
+    handoff = request.args.get("authToken")
+    if handoff and not request.cookies.get(SESSION_COOKIE_NAME):
+        response.set_cookie(
+            SESSION_COOKIE_NAME,
+            handoff,
+            httponly=True,
+            samesite="Lax",
+            secure=request.is_secure,
+            max_age=SESSION_MAX_AGE,
+        )
+
+    return response
 
 
 @auth.route("/logout")
