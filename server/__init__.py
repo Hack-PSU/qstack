@@ -48,14 +48,46 @@ with app.app_context():
 
     db.init_app(app)
 
-    # Create tables if they don't exist
-    # Wrapped in try/except to handle race conditions with multiple workers
+    # Create tables if they don't exist.
+    #
+    # Every gunicorn worker runs this, so concurrent CREATE TABLE statements
+    # race on boot -- hence the try/except. It is also only ever additive:
+    # create_all never alters an existing table, so a column added to a model
+    # later will not appear on a database that already has the table. Schema
+    # changes beyond the first boot need applying by hand.
     with app.app_context():
         try:
             db.create_all()
         except Exception as e:
             # Tables may already exist from another worker, continue
             app.logger.warning(f"Database tables may already exist: {e}")
+
+    @app.route("/health")
+    def _health():
+        """
+        Health check -- no auth required.
+
+        Reports whether the database is reachable. The connection pool is lazy,
+        so a misconfigured DATABASE_URL does not stop the container starting; it
+        first shows up when a hacker tries to open a ticket. Surfacing it here
+        lets a deploy refuse to send traffic to such a revision.
+
+        Always returns 200: Cloud Run restarts instances that fail their probe,
+        so reporting a transient database blip as unhealthy would turn a brief
+        outage into a restart loop.
+        """
+        from sqlalchemy import text
+
+        database = "ok"
+        try:
+            db.session.execute(text("SELECT 1"))
+        except Exception as exc:
+            database = "error: %s" % type(exc).__name__
+            app.logger.warning("health check could not reach the database: %s", exc)
+        finally:
+            db.session.remove()
+
+        return {"status": "ok", "service": "qstack", "database": database}, 200
 
     @app.errorhandler(404)
     def _default(_error):

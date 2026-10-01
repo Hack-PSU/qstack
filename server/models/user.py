@@ -4,31 +4,36 @@ from sqlalchemy import (
     Integer,
     Text,
     ForeignKey,
-    ARRAY,
-    Numeric,
-    String,
     Enum,
 )
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.mutable import MutableList
 from flask import session
-from sqlalchemy.dialects.postgresql import JSON
+from server.models.types import (
+    CONTACT_METHOD_LENGTH,
+    JsonList,
+    user_id_column,
+)
 from server.hackpsu_api import get_user_info, get_my_info
 
 
 class User(db.Model):
     __tablename__ = "users"
 
-    id = Column(String, primary_key=True, nullable=False)
+    id = Column(user_id_column(), primary_key=True, nullable=False)
     role = Column(Text, nullable=False)
     location = Column(Text, nullable=False)
     zoomlink = Column(Text, nullable=False)
     discord = Column(Text, nullable=False)
     phone = Column(Text, nullable=False)
-    preferred = Column(Enum('Email', 'Phone', 'Discord', name='preferred_contact', create_type=False), nullable=True)
+    # native_enum=False renders a VARCHAR with a CHECK constraint, which both
+    # engines support. A native PostgreSQL ENUM type has no MySQL counterpart.
+    preferred = Column(
+        Enum('Email', 'Phone', 'Discord', name='preferred_contact',
+             native_enum=False, length=CONTACT_METHOD_LENGTH),
+        nullable=True)
     resolved_tickets = Column(Integer)
-    ratings = Column(MutableList.as_mutable(ARRAY(Numeric(2, 1))))
-    reviews = Column(MutableList.as_mutable(JSON), default=list)
+    ratings = Column(JsonList())
+    reviews = Column(JsonList(), default=list)
 
     ticket_id = Column(Integer, ForeignKey("tickets.id", ondelete="SET NULL"))
     ticket = relationship("Ticket", foreign_keys=[ticket_id])

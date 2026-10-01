@@ -1,5 +1,6 @@
 from server import db
-from sqlalchemy import Column, Integer, Boolean, Text, String, ForeignKey, ARRAY, DateTime
+from sqlalchemy import Column, Integer, Boolean, Text, ForeignKey, DateTime
+from server.models.types import JsonList, token_column, user_id_column
 from sqlalchemy.orm import relationship
 
 
@@ -7,23 +8,23 @@ class Ticket(db.Model):
     __tablename__ = "tickets"
 
     id = Column(Integer, primary_key=True, nullable=False)
-    creator_id = Column(String, ForeignKey("users.id"))
+    creator_id = Column(user_id_column(), ForeignKey("users.id"))
     creator = relationship("User", foreign_keys=[creator_id])
 
-    claimant_id = Column(String, ForeignKey("users.id"))
+    claimant_id = Column(user_id_column(), ForeignKey("users.id"))
     claimant = relationship("User", foreign_keys=[claimant_id])
     claimant_name = Column(Text)
 
     question = Column(Text, nullable=False)
     content = Column(Text, nullable=False)
     location = Column(Text, nullable=False)
-    tags = Column(ARRAY(Text), nullable=False, default=[])
-    images = Column(ARRAY(Text), nullable=False)
+    tags = Column(JsonList(), nullable=False, default=list)
+    images = Column(JsonList(), nullable=False, default=list)
     creator_email = Column(Text, nullable=False)
     creator_name = Column(Text, nullable=False)
 
     active = Column(Boolean, nullable=False, default=True)
-    status = Column(String)
+    status = Column(token_column())
 
     createdAt = Column(DateTime, nullable=False)
     claimedAt = Column(DateTime)

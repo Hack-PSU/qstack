@@ -1,0 +1,103 @@
+# Deploy QStack to Cloud Run.
+#
+# Split from the master build on purpose: merging to master publishes an image,
+# but only pushing to `production` puts it in front of hackers and mentors.
+# Master takes dependency bumps, so "every merge goes live" is the wrong default
+# during an event.
+#
+# Promote with:  git push origin master:production
+name: Deploy Production
+
+on:
+  push:
+    branches:
+      - production
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Cloud Run
+    runs-on: ubuntu-latest
+    env:
+      REGION: us-east4
+      SERVICE: qstack-production
+      # Tagged by commit, never :latest, so a running revision can always be
+      # traced back to the source it was built from.
+      IMAGE: us-east4-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/qstack/image:${{ github.sha }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure GCloud
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Configure Docker to use Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.prod
+          push: true
+          tags: ${{ env.IMAGE }}
+
+      # Deployed without traffic first. Cloud Run otherwise routes to the new
+      # revision immediately, so a broken build is already serving by the time
+      # any check notices.
+      - name: Deploy new revision (no traffic yet)
+        run: |-
+          gcloud run deploy "$SERVICE" \
+            --region "$REGION" \
+            --image "$IMAGE" \
+            --platform managed \
+            --no-traffic \
+            --tag candidate \
+            --quiet
+
+      - name: Check the candidate before sending it traffic
+        run: |-
+          CANDIDATE=$(gcloud run services describe "$SERVICE" --region "$REGION" \
+            --format 'value(status.traffic.filter("tag:candidate").extract("url"))' \
+            | tr -d "[]'")
+          echo "Candidate: $CANDIDATE"
+
+          for i in $(seq 1 10); do
+            BODY=$(curl -fsS --max-time 15 "$CANDIDATE/health" || true)
+            echo "  attempt $i: ${BODY:-no response}"
+            case "$BODY" in
+              *'"database":"ok"'*)
+                echo "Candidate is healthy."
+                exit 0 ;;
+            esac
+            sleep 6
+          done
+          echo "::error::Candidate never became healthy; traffic not moved." >&2
+          exit 1
+
+      - name: Send traffic to the new revision
+        run: |-
+          gcloud run services update-traffic "$SERVICE" \
+            --region "$REGION" --to-latest --quiet
+          URL=$(gcloud run services describe "$SERVICE" --region "$REGION" \
+                  --format 'value(status.url)')
+          echo "Live: $URL"
+          curl -fsS --max-time 15 "$URL/health"
+
+      # Leave no lingering tagged URL pointing at the revision.
+      - name: Remove the candidate tag
+        if: always()
+        run: |-
+          gcloud run services update-traffic "$SERVICE" \
+            --region "$REGION" --remove-tags candidate --quiet || true

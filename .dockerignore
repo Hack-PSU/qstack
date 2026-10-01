@@ -1,0 +1,65 @@
+# Anything not needed to run the app is excluded, because this image is pushed
+# to Artifact Registry. Patterns are anchored at the build context root, so use
+# ** for anything that can appear at any depth.
+
+# --- secrets and local state -------------------------------------------
+.env
+.env.*
+!.env.sample
+**/venv/
+**/.venv/
+**/env/
+*.pem
+*.key
+*-credentials.json
+*service-account*.json
+flask_session/
+
+# --- data ---------------------------------------------------------------
+*.sql
+*.sql.gz
+*.dump
+*.sqlite
+*.db
+
+# --- node / build artefacts ---------------------------------------------
+# node_modules is reinstalled in the build stage; client/dist is rebuilt there.
+**/node_modules/
+client/dist/
+
+# --- python -------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# --- vcs, tooling, editors ----------------------------------------------
+.git/
+.gitignore
+.gitattributes
+.github/
+.devcontainer/
+.claude/
+.vscode/
+.idea/
+*.swp
+
+# --- os -----------------------------------------------------------------
+.DS_Store
+Thumbs.db
+
+# --- docker / scripts ---------------------------------------------------
+Dockerfile
+Dockerfile.*
+docker-compose.yml
+.dockerignore
+start.prod.sh
+scripts/
+
+# --- docs and logs ------------------------------------------------------
+*.md
+!README.md
+*.log
